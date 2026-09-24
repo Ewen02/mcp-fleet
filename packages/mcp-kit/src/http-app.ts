@@ -68,6 +68,10 @@ export function createHttpApp(definition: McpServerDefinition, options: HttpAppO
   const validateOrigin = originValidation(options.allowedOrigins)
   const rateLimiter = options.rateLimitPerMinute > 0 ? createRateLimiter(options.rateLimitPerMinute) : null
 
+  // Réponses pas encore terminées, et état d'arrêt : voir close().
+  const inFlight = new Set<ServerResponse>()
+  let closing = false
+
   const server = createNodeServer((req, res) => {
     const start = performance.now()
     const requestId = requestIdOf(req)
@@ -77,6 +81,11 @@ export function createHttpApp(definition: McpServerDefinition, options: HttpAppO
     const path = pathOf(req)
     res.setHeader('x-request-id', requestId)
     res.setHeader('x-content-type-options', 'nosniff')
+    // Pendant l'arrêt, une connexion keep-alive peut encore porter une
+    // requête : on la sert, puis Node ferme la connexion.
+    if (closing) res.setHeader('connection', 'close')
+    inFlight.add(res)
+    res.on('close', () => inFlight.delete(res))
 
     // Log sans body ni IP : les arguments d'un tool peuvent être des données
     // personnelles, et l'IP n'est utile qu'à la limite de débit.
@@ -146,8 +155,21 @@ export function createHttpApp(definition: McpServerDefinition, options: HttpAppO
       // celles qui sont inactives, laisser les requêtes en cours se terminer,
       // et seulement ensuite fermer le handler MCP. L'inverse ferait échouer
       // en 500 les requêtes arrivées pendant l'arrêt (vu à chaque déploiement).
+      closing = true
       const closed = new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())))
       server.closeIdleConnections()
+      // Une connexion keep-alive qui sert une requête en cours doit être
+      // fermée dès sa réponse envoyée : sinon server.close() attend son
+      // expiration (65 s) et l'arrêt finit tué par le plafond de 8 s.
+      // `Connection: close` si les en-têtes ne sont pas partis, fermeture
+      // douce du socket après la réponse sinon (flux SSE déjà commencé).
+      for (const res of inFlight) {
+        if (!res.headersSent) res.setHeader('connection', 'close')
+        else {
+          const socket = res.socket
+          res.once('finish', () => socket?.end())
+        }
+      }
       await closed
       rateLimiter?.stop()
       await mcpHandler.close()

@@ -141,12 +141,15 @@ The project is meant to host several MCP servers. Everything that is not a domai
 - **The kit is a compiled internal package** (`dist/` + `.d.ts`, `exports` in its `package.json`), consumed with `workspace:*`: what runs in production is what the tests import. It is **not published** and there are **no changesets**: with one consumer, a version number for the kit would be ceremony. To revisit when a second repository needs it.
 - **Cost**: one more build step before server tests, and two `package.json` to keep aligned through the catalog. Accepted.
 
+### D26 — Shutdown closes kept-alive connections after the in-flight response
+Found while moving the HTTP app into the kit: the graceful-shutdown test took 63 s. `server.close()` only closes connections idle *at that moment*; the connection serving an in-flight request stayed open after its response until Node's keep-alive timeout (65 s). In production, a SIGTERM during a request therefore ended in `forced_exit` after the 8 s cap, with exit code 1. Now, during shutdown, responses carry `Connection: close` (or the socket is ended after the response when headers are already sent), so the process stops right after the last response. The test asserts `close()` finishes in under 5 s (58 ms measured); the whole test suite went from ~65 s to ~7 s. This is the only behavior change of the monorepo migration.
+
 ## Tests
 
 Run from the root with `pnpm test` (Turborepo, in dependency order).
 
 **`packages/mcp-kit/test`**: the infrastructure, with a domain-free `echo` server (`test/fixtures/echo-server.ts`).
-- `http-app.test.ts`: the HTTP app on a random port + the official Streamable HTTP client in both eras, the injected `/health` fields, the guards (foreign Host, foreign Origin, oversized body, 404, invalid target, request id), rate limiting and `X-Forwarded-For` trust, graceful shutdown with a request really in flight.
+- `http-app.test.ts`: the HTTP app on a random port + the official Streamable HTTP client in both eras, the injected `/health` fields, the guards (foreign Host, foreign Origin, oversized body, 404, invalid target, request id), rate limiting and `X-Forwarded-For` trust, graceful shutdown with a request really in flight (D26).
 - `stdio.test.ts`: stdout carries only JSON-RPC even at `LOG_LEVEL=debug`; logs go to stderr (D8).
 - `config.test.ts`, `rate-limit.test.ts`: safe defaults, fail-fast configuration, key normalization (IPv4-mapped, IPv6 /64), window reset, bounded memory.
 - `logger.test.ts`, `telemetry.test.ts`, `server-info.test.ts`: JSON lines and levels; one line per tool call without arguments or error messages; identity read from the server's `package.json`.

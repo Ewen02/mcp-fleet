@@ -211,6 +211,7 @@ describe('http — graceful shutdown', () => {
     // On attend que le handler ait commencé : la requête est alors vraiment « en vol ».
     const inFlight = client.callTool({ name: 'wait', arguments: {} })
     await gate.entered
+    const started = performance.now()
     const closing = shutdownApp.close()
     gate.release()
 
@@ -219,5 +220,11 @@ describe('http — graceful shutdown', () => {
     assert.deepEqual(res.content, [{ type: 'text', text: 'done' }])
     await client.close()
     await closing
+
+    // La connexion keep-alive qui a servi la requête en vol doit être fermée
+    // dès la réponse envoyée. Sinon close() attend son expiration (65 s) et,
+    // en production, l'arrêt finit tué par le plafond de 8 s (forced_exit).
+    const elapsed = performance.now() - started
+    assert.ok(elapsed < 5_000, `close() took ${Math.round(elapsed)} ms`)
   })
 })

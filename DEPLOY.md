@@ -79,7 +79,7 @@ ssh vps 'cd ~/infra/caddy && docker compose exec -T caddy caddy validate --confi
 # 5. Whitelist the project on the repository's deploy key (see §1)
 ```
 
-Then push to `main`. Check from the Internet, not from the server:
+Then push to `main` (or run the CI workflow manually with `servers: paie-fr`). Check from the Internet, not from the server:
 
 ```bash
 scripts/smoke-test.sh https://mcp-paie-fr.137-74-175-232.sslip.io
@@ -89,10 +89,21 @@ Finally, back up the new `.env` right away: `~/infra/scripts/backup-env.sh`.
 
 ## 3. What happens on each push
 
-| Event | check | image | deploy |
+| Event | check | image (per server) | deploy (per server) |
 |---|---|---|---|
-| Pull request | lint, typecheck, tests, build, `pnpm audit` | build + hardened smoke test, not pushed | — |
-| Push to `main` | same | build, smoke test, push `:<sha>` + `:latest` | `deploy mcp-paie-fr <sha>` over SSH, then HTTPS `/health` |
+| Pull request | lint, typecheck, tests, build of **affected** packages, `pnpm audit` | build + hardened smoke test, not pushed | — |
+| Push to `main` | same, vs. the previous commit | build, smoke test, push `:<sha>` + `:latest` | `deploy <name> <sha>` over SSH, then HTTPS `/health` |
+| Manual run | everything | the servers you name (default: all) | same |
+
+"Affected" comes from Turborepo's dependency graph (`scripts/affected-servers.mjs`):
+
+| Change | Servers rebuilt and redeployed |
+|---|---|
+| `servers/paie-fr/**` | paie-fr only |
+| `packages/mcp-kit/**` | every server (they all depend on the kit) |
+| `Dockerfile`, `.dockerignore`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `biome.json` | every server |
+| `pnpm-lock.yaml` | the servers whose resolved dependencies changed |
+| Root docs, `deploy/Caddyfile`, `scripts/`, workflows | none |
 
 On the VPS, `deploy.sh` pulls the image of the commit, waits for `healthy` (the image probes every 2 s while starting: ~3 s), records the tag in `.deployed-tag`, and **rolls back to the previous tag** if the container does not become healthy. Its exit code fails the job: a broken deployment never shows a green check.
 

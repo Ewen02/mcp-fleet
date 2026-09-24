@@ -21,7 +21,7 @@ packages/
 servers/
   paie-fr/            mcp-paie-fr: URSSAF engine, domain, tools, tests, deploy files
 deploy/Caddyfile      Caddy fragment for the VPS (one block per server)
-scripts/              smoke test of a running server
+scripts/              smoke test, list of servers affected by a change (CI)
 github-setup/         GitHub Actions and Dependabot files, to copy into .github/
 ```
 
@@ -44,7 +44,7 @@ Work on one package (Turborepo still builds what it depends on first): `pnpm tur
 
 Per-server instructions (tools, local setup in Claude Desktop or Cursor, debugging): see each server's README, e.g. [servers/paie-fr](./servers/paie-fr/README.md).
 
-Remote servers run on a VPS behind Caddy, one container and one subdomain per server, deployed by GitHub Actions: [DEPLOY.md](./DEPLOY.md).
+Remote servers run on a VPS behind Caddy, one container and one subdomain per server, deployed by GitHub Actions only when they changed: [DEPLOY.md](./DEPLOY.md).
 
 ## Privacy
 

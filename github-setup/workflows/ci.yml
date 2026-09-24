@@ -1,11 +1,16 @@
-# Intégration et livraison continues.
+# Intégration et livraison continues du monorepo.
 #
-#   check   lint, types, tests, build de tous les paquets (Turborepo)
-#           + audit des dépendances de prod
-#   image   image de paie-fr : build, test de fumée durci, puis publication
-#           sur GHCR (main uniquement)
-#   deploy  déploiement via ~/infra/scripts/deploy.sh
+#   check   lint, types, tests, build des paquets touchés (Turborepo --affected)
+#           + audit des dépendances de prod + liste des serveurs à livrer
+#   image   une image par serveur touché : build, test de fumée durci,
+#           puis publication sur GHCR (main uniquement)
+#   deploy  un déploiement par serveur touché, via ~/infra/scripts/deploy.sh
 #           (main uniquement, et seulement si DEPLOY_ENABLED vaut "true")
+#
+# « Touché » = décidé par le graphe de Turborepo depuis la base de comparaison
+# (voir scripts/affected-servers.mjs) : un serveur modifié → lui seul ; le kit
+# → tous ses dépendants ; Dockerfile, .dockerignore, pnpm-workspace.yaml → tous ;
+# la documentation à la racine → aucun.
 #
 # Configuration (Settings > Secrets and variables > Actions) : voir DEPLOY.md.
 name: CI
@@ -14,6 +19,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      servers:
+        description: 'Servers to rebuild and redeploy: "all", or folders of servers/ separated by spaces'
+        default: all
 
 permissions:
   contents: read
@@ -27,8 +37,13 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    outputs:
+      servers: ${{ steps.servers.outputs.servers }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # --affected compare avec un commit de base : il faut l'historique.
+          fetch-depth: 0
       # pnpm est lu dans `packageManager` du package.json racine.
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
@@ -37,18 +52,59 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
+      - name: Base of comparison
+        id: base
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # PR : la branche cible. Push : le commit précédent. Sinon (lancement
+          # manuel, nouvelle branche, historique réécrit) : tout reconstruire.
+          case "$EVENT" in
+            pull_request) base="$PR_BASE" ;;
+            push) base="$BEFORE" ;;
+            *) base="" ;;
+          esac
+          if [ -n "$base" ] && [ "$base" != "0000000000000000000000000000000000000000" ] \
+             && git cat-file -e "${base}^{commit}" 2>/dev/null; then
+            echo "TURBO_SCM_BASE=$base" >> "$GITHUB_ENV"
+            echo "affected=--affected" >> "$GITHUB_OUTPUT"
+            echo "Comparing with $base"
+          else
+            echo "affected=" >> "$GITHUB_OUTPUT"
+            echo "No usable base: checking and building everything"
+          fi
+
       - name: Lint, typecheck, test, build
-        run: pnpm turbo run lint lint:root typecheck test build
+        run: pnpm turbo run lint lint:root typecheck test build ${{ steps.base.outputs.affected }}
 
       - name: Audit production dependencies
         run: pnpm audit --prod --audit-level=high
 
+      - name: Servers to ship
+        id: servers
+        env:
+          REQUESTED: ${{ github.event.inputs.servers }}
+          AFFECTED: ${{ steps.base.outputs.affected }}
+        run: |
+          read -ra requested <<< "$REQUESTED"
+          if [ "${#requested[@]}" -gt 0 ]; then node scripts/affected-servers.mjs "${requested[@]}"
+          elif [ -n "$AFFECTED" ]; then node scripts/affected-servers.mjs --affected
+          else node scripts/affected-servers.mjs; fi
+
   image:
+    name: image (${{ matrix.server.name }})
     needs: check
+    if: needs.check.outputs.servers != '[]'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        server: ${{ fromJSON(needs.check.outputs.servers) }}
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v4
@@ -56,26 +112,26 @@ jobs:
       - name: Image name
         id: img
         # ghcr.io refuse les majuscules, or github.repository garde la casse du compte.
-        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}/mcp-paie-fr" >> "$GITHUB_OUTPUT"
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}/${{ matrix.server.name }}" >> "$GITHUB_OUTPUT"
 
       - name: Build
         uses: docker/build-push-action@v7
         with:
           context: .
-          build-args: SERVER=paie-fr
+          build-args: SERVER=${{ matrix.server.dir }}
           # Le VPS est amd64 : une image arm64 y finirait en « exec format error ».
           platforms: linux/amd64
           load: true
-          tags: mcp-paie-fr:ci
-          cache-from: type=gha,scope=mcp-paie-fr
-          cache-to: type=gha,mode=max,scope=mcp-paie-fr
+          tags: ${{ matrix.server.name }}:ci
+          cache-from: type=gha,scope=${{ matrix.server.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.server.name }}
           provenance: false
 
       - name: Smoke test, hardened like production
         run: |
           docker run -d --name smoke --read-only --tmpfs /tmp --cap-drop ALL \
             --security-opt no-new-privileges:true --user 1001:1001 \
-            -p 127.0.0.1:3000:3000 mcp-paie-fr:ci
+            -p 127.0.0.1:3000:3000 ${{ matrix.server.name }}:ci
           for _ in $(seq 1 30); do
             [ "$(docker inspect -f '{{.State.Health.Status}}' smoke)" = healthy ] && break
             sleep 1
@@ -95,7 +151,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          build-args: SERVER=paie-fr
+          build-args: SERVER=${{ matrix.server.dir }}
           platforms: linux/amd64
           push: true
           # Tag = SHA complet (ce que deploy.sh attend et garde pour un rollback) + latest.
@@ -103,17 +159,24 @@ jobs:
             ${{ steps.img.outputs.name }}:${{ github.sha }}
             ${{ steps.img.outputs.name }}:latest
           # Même cache que l'étape Build : aucune couche n'est reconstruite.
-          cache-from: type=gha,scope=mcp-paie-fr
+          cache-from: type=gha,scope=${{ matrix.server.name }}
           provenance: false
 
   deploy:
-    needs: image
-    if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
+    name: deploy (${{ matrix.server.name }})
+    needs: [check, image]
+    if: >-
+      github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      && vars.DEPLOY_ENABLED == 'true' && needs.check.outputs.servers != '[]'
     runs-on: ubuntu-latest
     environment: production
-    # Un seul déploiement à la fois, jamais interrompu.
+    strategy:
+      fail-fast: false
+      matrix:
+        server: ${{ fromJSON(needs.check.outputs.servers) }}
+    # Un déploiement à la fois par serveur, jamais interrompu.
     concurrency:
-      group: deploy-mcp-paie-fr
+      group: deploy-${{ matrix.server.name }}
       cancel-in-progress: false
     steps:
       - name: Deploy key
@@ -136,11 +199,11 @@ jobs:
         run: |
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
               -o UserKnownHostsFile=~/.ssh/known_hosts -o ConnectTimeout=15 \
-              "$TARGET" "deploy mcp-paie-fr ${{ github.sha }}"
+              "$TARGET" "deploy ${{ matrix.server.name }} ${{ github.sha }}"
 
       - name: Smoke test through HTTPS
         env:
-          DOMAIN: mcp-paie-fr.${{ vars.MCP_BASE_DOMAIN || '137-74-175-232.sslip.io' }}
+          DOMAIN: ${{ matrix.server.name }}.${{ vars.MCP_BASE_DOMAIN || '137-74-175-232.sslip.io' }}
         run: curl --fail --silent --show-error --retry 5 --retry-delay 3 "https://$DOMAIN/health"
 
       - name: Remove the key

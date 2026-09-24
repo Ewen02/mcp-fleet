@@ -44,6 +44,7 @@ Rules for anyone (human or AI agent) writing code in this repository.
 
 - Never build on the VPS: images are built by GitHub Actions and pulled by `~/infra/scripts/deploy.sh` (see [DEPLOY.md](./DEPLOY.md)).
 - A server's compose file (`servers/<name>/deploy/docker-compose.yml`) never publishes a port: only the central Caddy does.
+- `.github/` is write-protected from Cowork: when working from Cowork, write workflow changes in a `github-setup/` folder, then move them into `.github/` from a terminal or Claude Code. Never keep both copies.
 
 ## Checks before committing
 

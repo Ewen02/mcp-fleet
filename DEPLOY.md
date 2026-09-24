@@ -26,7 +26,7 @@ The `/vps-deploy` and `/vps-domaine` Claude skills automate the VPS side of the 
 ## 1. Once per repository
 
 ### GitHub
-1. Create the repository and copy `github-setup/` into `.github/` (`dependabot.yml`, `workflows/ci.yml`, `workflows/rules-watch.yml`).
+1. The workflows are in `.github/` (`workflows/ci.yml`, `workflows/rules-watch.yml`, `dependabot.yml`): nothing to copy.
 2. **Deploy key**: one per repository (the CI secrets are shared by all its servers anyway), restricted to this repository's projects:
    ```bash
    ssh-keygen -t ed25519 -f ~/.ssh/deploy-mcp-fleet -C "deploy-mcp-fleet" -N ""

@@ -10,7 +10,7 @@
 deploy
 docs
 scripts
-github-setup
+.github
 *.md
 **/*.md
 **/*.log

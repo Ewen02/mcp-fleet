@@ -23,7 +23,7 @@ servers/
 docs/new-server.md    add a new MCP server in an evening
 deploy/Caddyfile      Caddy fragment for the VPS (one block per server)
 scripts/              smoke test, list of servers affected by a change (CI)
-github-setup/         GitHub Actions and Dependabot files, to copy into .github/
+.github/              CI (checks, images, deployment), rules watch, Dependabot
 ```
 
 Why this split and where the boundary is: [ARCHITECTURE.md](./ARCHITECTURE.md) (D23). Coding conventions: [AGENTS.md](./AGENTS.md).

@@ -1,0 +1,24 @@
+# Espace de travail pnpm : chaque dossier listé ici est un paquet.
+#   packages/*  briques partagées (le kit), jamais déployées seules
+#   servers/*   un serveur MCP = une image Docker = un conteneur sur le VPS
+packages:
+  - packages/*
+  - servers/*
+
+# pnpm 11 refuse d'exécuter les scripts d'installation des dépendances, sauf
+# autorisation explicite ici (protection contre les paquets compromis).
+# esbuild (utilisé par tsx, seulement pour les tests) n'en a pas besoin : son
+# binaire arrive par une dépendance optionnelle propre à chaque plateforme.
+allowBuilds:
+  esbuild: false
+
+# Catalogue : les dépendances partagées par plusieurs paquets ont UNE version,
+# déclarée ici, et les package.json écrivent `"catalog:"`. Le kit et chaque
+# serveur utilisent ainsi la même instance du SDK MCP et de zod : deux copies
+# différentes du SDK (ou de zod, dont il convertit les schémas) casseraient la
+# génération des JSON Schema des tools de façon silencieuse.
+catalog:
+  '@modelcontextprotocol/client': ^2.1.0
+  '@modelcontextprotocol/node': ^2.1.0
+  '@modelcontextprotocol/server': ^2.1.0
+  zod: ^4.0.0

@@ -2,7 +2,7 @@
 # Usage : cp .env.example .env && docker compose up -d
 services:
   mcp-paie-fr:
-    image: ${IMAGE:?set IMAGE in .env, e.g. ghcr.io/<github-user>/mcp-paie-fr}:${IMAGE_TAG:-latest}
+    image: ${IMAGE:?set IMAGE in .env, e.g. ghcr.io/<github-user>/<repository>/mcp-paie-fr}:${IMAGE_TAG:-latest}
     container_name: mcp-paie-fr
     restart: unless-stopped
     # Écoute uniquement sur la boucle locale : seul Caddy (sur l'hôte) y accède.

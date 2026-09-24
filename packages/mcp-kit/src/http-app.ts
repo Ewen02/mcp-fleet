@@ -5,11 +5,14 @@
  *
  * Routes :
  *   POST /mcp    → endpoint Streamable HTTP (MCP)
- *   GET  /health → sonde pour l'hébergeur (version + millésime des règles)
+ *   GET  /health → sonde pour l'hébergeur (nom, version + champs fournis par le serveur)
  *   *            → 404
  *
  * Ordre des garde-fous sur /mcp : Host → Origin → limite de débit → SDK
  * (qui applique lui-même la limite de taille du body).
+ *
+ * Aucune connaissance du métier : le serveur MCP (factory, identité, champs
+ * de /health) est injecté par l'appelant via McpServerDefinition.
  */
 import { randomUUID } from 'node:crypto'
 import { createServer as createNodeServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
@@ -20,10 +23,9 @@ import {
   toNodeHandler,
 } from '@modelcontextprotocol/node'
 import { createMcpHandler } from '@modelcontextprotocol/server'
-import { RULES_SOURCE } from './domain/engine.js'
+import type { McpServerDefinition } from './definition.js'
 import type { Logger } from './logger.js'
 import { createRateLimiter } from './rate-limit.js'
-import { createServer, SERVER_INFO } from './server.js'
 
 export interface HttpAppOptions {
   /** Hostnames acceptés dans le header Host (protection DNS rebinding). */
@@ -44,15 +46,15 @@ export interface HttpApp {
   close(): Promise<void>
 }
 
-export function createHttpApp(options: HttpAppOptions): HttpApp {
+export function createHttpApp(definition: McpServerDefinition, options: HttpAppOptions): HttpApp {
   const { logger } = options
 
-  // Stateless : le SDK crée un McpServer par requête via notre factory.
+  // Stateless : le SDK crée un McpServer par requête via la factory du serveur.
   // Aucune session à stocker → n'importe quel nombre d'instances derrière
   // un load balancer, sans Redis ni sticky sessions.
   // `legacy: 'stateless'` (défaut, explicité ici) sert aussi les clients
   // 2025 qui envoient encore `initialize`.
-  const mcpHandler = createMcpHandler(createServer, {
+  const mcpHandler = createMcpHandler(definition.createServer, {
     legacy: 'stateless',
     maxRequestBodySize: options.maxBodyBytes,
     onerror: (error) => logger.warn('mcp_error', { error: error.name, message: error.message.slice(0, 200) }),
@@ -76,8 +78,8 @@ export function createHttpApp(options: HttpAppOptions): HttpApp {
     res.setHeader('x-request-id', requestId)
     res.setHeader('x-content-type-options', 'nosniff')
 
-    // Log sans body ni IP : un salaire est une donnée personnelle,
-    // et l'IP n'est utile qu'à la limite de débit.
+    // Log sans body ni IP : les arguments d'un tool peuvent être des données
+    // personnelles, et l'IP n'est utile qu'à la limite de débit.
     res.on('finish', () => {
       // La sonde de santé passe toutes les 30 s : en debug pour ne pas noyer les logs.
       const log = path === '/health' ? logger.debug : logger.info
@@ -114,12 +116,9 @@ export function createHttpApp(options: HttpAppOptions): HttpApp {
     if (path === '/health' && (req.method === 'GET' || req.method === 'HEAD')) {
       return sendJson(res, 200, {
         status: 'ok',
-        name: SERVER_INFO.name,
-        version: SERVER_INFO.version,
-        rules: {
-          modele_social_version: RULES_SOURCE.modele_social_version,
-          reference_date: RULES_SOURCE.reference_date,
-        },
+        name: definition.info.name,
+        version: definition.info.version,
+        ...definition.health?.(),
       })
     }
 

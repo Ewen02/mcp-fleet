@@ -1,36 +1,41 @@
 /**
- * Test de bout en bout du transport HTTP : l'application est démarrée sur
- * un port aléatoire et le client officiel lui parle en Streamable HTTP,
- * comme un connecteur distant (Claude, ChatGPT, Cursor).
+ * Test de bout en bout du transport HTTP du kit : l'application est démarrée
+ * sur un port aléatoire avec un serveur « echo » sans métier, et le client
+ * officiel lui parle en Streamable HTTP, comme un connecteur distant
+ * (Claude, ChatGPT, Cursor).
  *
- * On couvre les deux ères du protocole, puis les garde-fous HTTP.
+ * On couvre les deux ères du protocole, l'injection du serveur, puis les
+ * garde-fous HTTP, la limite de débit et l'arrêt propre.
  */
 
 import assert from 'node:assert/strict'
-import { once } from 'node:events'
 import type { AddressInfo } from 'node:net'
 import { after, before, describe, test } from 'node:test'
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client'
-import { createHttpApp, type HttpApp } from '../src/http-app.js'
+import { createHttpApp, type HttpApp, type HttpAppOptions } from '../src/http-app.js'
 import { createLogger } from '../src/logger.js'
-import type { GrossToNetOutput } from '../src/tools/gross-to-net.js'
-import type { IncomeTaxEstimateOutput } from '../src/tools/income-tax-estimate.js'
+import { ECHO_INFO, echoDefinition, Gate } from './fixtures/echo-server.js'
+
+const OPTIONS: HttpAppOptions = {
+  allowedHosts: ['localhost', '127.0.0.1'],
+  allowedOrigins: [],
+  trustProxy: false,
+  rateLimitPerMinute: 0,
+  maxBodyBytes: 64 * 1024,
+  logger: createLogger('silent'),
+}
+
+async function listen(app: HttpApp): Promise<string> {
+  await new Promise<void>((resolve) => app.server.listen(0, '127.0.0.1', resolve))
+  return `http://127.0.0.1:${(app.server.address() as AddressInfo).port}`
+}
 
 let app: HttpApp
 let baseUrl: string
 
 before(async () => {
-  app = createHttpApp({
-    allowedHosts: ['localhost', '127.0.0.1'],
-    allowedOrigins: [],
-    trustProxy: false,
-    rateLimitPerMinute: 0,
-    maxBodyBytes: 64 * 1024,
-    logger: createLogger('silent'),
-  })
-  await new Promise<void>((resolve) => app.server.listen(0, '127.0.0.1', resolve))
-  const { port } = app.server.address() as AddressInfo
-  baseUrl = `http://127.0.0.1:${port}`
+  app = createHttpApp(echoDefinition(), OPTIONS)
+  baseUrl = await listen(app)
 })
 
 after(() => app.close())
@@ -45,21 +50,20 @@ for (const [name, mode] of [
     let client: Client
     after(() => client?.close())
 
-    test('tools/list exposes the three tools', async () => {
+    test('tools/list exposes the tools of the injected server', async () => {
       client = new Client({ name: 'test-http', version: '0.0.0' }, { versionNegotiation: { mode } })
       await client.connect(new StreamableHTTPClientTransport(new URL(`${baseUrl}/mcp`)))
       const { tools } = await client.listTools()
       assert.deepEqual(
         tools.map((t) => t.name),
-        ['gross_to_net', 'employer_cost', 'income_tax_estimate'],
+        ['echo', 'wait'],
       )
+      assert.equal(tools[0]?.annotations?.readOnlyHint, true)
     })
 
     test('tools/call works over HTTP', async () => {
-      const res = await client.callTool({ name: 'gross_to_net', arguments: { gross_salary: 3000 } })
-      const data = res.structuredContent as GrossToNetOutput
-      assert.equal(data.net_before_income_tax, 2352.85)
-      assert.equal(data.source.year, 2026)
+      const res = await client.callTool({ name: 'echo', arguments: { text: 'bonjour' } })
+      assert.deepEqual(res.structuredContent, { text: 'bonjour' })
     })
   })
 }
@@ -73,12 +77,16 @@ describe('http — safeguards', () => {
   })
   const mcpHeaders = { 'content-type': 'application/json', accept: 'application/json, text/event-stream' }
 
-  test('GET /health returns the version and the rules vintage', async () => {
+  test('GET /health returns the name, the version and the fields provided by the server', async () => {
     const res = await fetch(`${baseUrl}/health`)
     assert.equal(res.status, 200)
-    const body = (await res.json()) as { status: string; rules: { reference_date: string } }
-    assert.equal(body.status, 'ok')
-    assert.equal(body.rules.reference_date, '2026-07-01')
+    assert.equal(res.headers.get('cache-control'), 'no-store')
+    assert.deepEqual(await res.json(), {
+      status: 'ok',
+      name: ECHO_INFO.name,
+      version: ECHO_INFO.version,
+      fixture: { ready: true },
+    })
   })
 
   test('a foreign Host header is rejected (DNS rebinding protection)', async () => {
@@ -151,16 +159,8 @@ describe('http — rate limiting', () => {
   let url: string
 
   before(async () => {
-    limited = createHttpApp({
-      allowedHosts: ['localhost', '127.0.0.1'],
-      allowedOrigins: [],
-      trustProxy: true,
-      rateLimitPerMinute: 2,
-      maxBodyBytes: 64 * 1024,
-      logger: createLogger('silent'),
-    })
-    await new Promise<void>((resolve) => limited.server.listen(0, '127.0.0.1', resolve))
-    url = `http://127.0.0.1:${(limited.server.address() as AddressInfo).port}/mcp`
+    limited = createHttpApp(echoDefinition(), { ...OPTIONS, trustProxy: true, rateLimitPerMinute: 2 })
+    url = `${await listen(limited)}/mcp`
   })
 
   after(() => limited.close())
@@ -196,16 +196,9 @@ describe('http — rate limiting', () => {
 
 describe('http — graceful shutdown', () => {
   test('a tool call in flight when close() starts still completes', async () => {
-    const shutdownApp = createHttpApp({
-      allowedHosts: ['localhost', '127.0.0.1'],
-      allowedOrigins: [],
-      trustProxy: false,
-      rateLimitPerMinute: 0,
-      maxBodyBytes: 64 * 1024,
-      logger: createLogger('silent'),
-    })
-    await new Promise<void>((resolve) => shutdownApp.server.listen(0, '127.0.0.1', resolve))
-    const url = new URL(`http://127.0.0.1:${(shutdownApp.server.address() as AddressInfo).port}/mcp`)
+    const gate = new Gate()
+    const shutdownApp = createHttpApp(echoDefinition(gate), OPTIONS)
+    const url = new URL(`${await listen(shutdownApp)}/mcp`)
 
     // Client de l'ère 2026 : c'est sur ce chemin qu'un arrêt dans le mauvais
     // ordre coupait les requêtes en cours.
@@ -215,15 +208,15 @@ describe('http — graceful shutdown', () => {
     )
     await client.connect(new StreamableHTTPClientTransport(url))
 
-    // On attend que le serveur ait reçu la requête : elle est alors vraiment "en cours".
-    const received = once(shutdownApp.server, 'request')
-    const inFlight = client.callTool({ name: 'income_tax_estimate', arguments: { gross_salary: 3200 } })
-    await received
+    // On attend que le handler ait commencé : la requête est alors vraiment « en vol ».
+    const inFlight = client.callTool({ name: 'wait', arguments: {} })
+    await gate.entered
     const closing = shutdownApp.close()
+    gate.release()
 
     const res = await inFlight
     assert.notEqual(res.isError, true)
-    assert.ok((res.structuredContent as IncomeTaxEstimateOutput).annual_income_tax > 0)
+    assert.deepEqual(res.content, [{ type: 'text', text: 'done' }])
     await client.close()
     await closing
   })

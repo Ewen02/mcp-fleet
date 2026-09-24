@@ -6,21 +6,10 @@
  * de calcul ici.
  */
 import type { McpServer } from '@modelcontextprotocol/server'
+import { assumptionsSchema, instrument, READ_ONLY_ANNOTATIONS, warningsSchema } from '@repo/mcp-kit'
 import * as z from 'zod/v4'
 import { computeGrossToNet } from '../domain/salary.js'
-import {
-  assumptionsSchema,
-  CALCULATION_ANNOTATIONS,
-  employeeFields,
-  footerLines,
-  formatEuros,
-  periodSchema,
-  periodSuffix,
-  source,
-  sourceSchema,
-  warningsSchema,
-} from './shared.js'
-import { instrument } from './telemetry.js'
+import { employeeFields, footerLines, formatEuros, periodSchema, periodSuffix, source, sourceSchema } from './shared.js'
 
 const inputSchema = z.object(employeeFields)
 
@@ -57,7 +46,7 @@ export function registerGrossToNet(server: McpServer): void {
         'For employer cost use employer_cost; for income tax or net after tax use income_tax_estimate.',
       inputSchema,
       outputSchema,
-      annotations: CALCULATION_ANNOTATIONS,
+      annotations: READ_ONLY_ANNOTATIONS,
     },
     instrument('gross_to_net', async ({ gross_salary, period, is_executive, alsace_moselle }) => {
       const r = computeGrossToNet({

@@ -1,0 +1,40 @@
+{
+  "name": "mcp-paie-fr",
+  "version": "0.5.0",
+  "description": "MCP server for French payroll and income tax calculations, built on the open-source URSSAF engine (publicodes + modele-social).",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "mcp-paie-fr": "dist/stdio.js",
+    "mcp-paie-fr-http": "dist/http.js"
+  },
+  "files": [
+    "dist",
+    "NOTICE"
+  ],
+  "scripts": {
+    "dev:stdio": "tsx src/stdio.ts",
+    "dev:http": "tsx src/http.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start:stdio": "node dist/stdio.js",
+    "start:http": "node dist/http.js",
+    "typecheck": "tsc --noEmit",
+    "test": "LOG_LEVEL=silent node --import tsx --test test/*.test.ts",
+    "lint": "biome check .",
+    "inspect": "pnpm run build && pnpm dlx @modelcontextprotocol/inspector node dist/stdio.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "catalog:",
+    "@repo/mcp-kit": "workspace:*",
+    "modele-social": "11.1.0",
+    "publicodes": "^1.10.3",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "catalog:"
+  }
+}

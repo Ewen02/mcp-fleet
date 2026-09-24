@@ -3,21 +3,10 @@
  * schémas publics, mapping vers le domaine, texte pour le LLM.
  */
 import type { McpServer } from '@modelcontextprotocol/server'
+import { assumptionsSchema, instrument, READ_ONLY_ANNOTATIONS, warningsSchema } from '@repo/mcp-kit'
 import * as z from 'zod/v4'
 import { computeEmployerCost } from '../domain/salary.js'
-import {
-  assumptionsSchema,
-  CALCULATION_ANNOTATIONS,
-  employeeFields,
-  footerLines,
-  formatEuros,
-  periodSchema,
-  periodSuffix,
-  source,
-  sourceSchema,
-  warningsSchema,
-} from './shared.js'
-import { instrument } from './telemetry.js'
+import { employeeFields, footerLines, formatEuros, periodSchema, periodSuffix, source, sourceSchema } from './shared.js'
 
 const inputSchema = z.object({
   ...employeeFields,
@@ -73,7 +62,7 @@ export function registerEmployerCost(server: McpServer): void {
         'Returns total employer cost, employer contributions, the general reduction applied (RGDU), the net for comparison, assumptions, warnings and the source of the rules.',
       inputSchema,
       outputSchema,
-      annotations: CALCULATION_ANNOTATIONS,
+      annotations: READ_ONLY_ANNOTATIONS,
     },
     instrument('employer_cost', async ({ gross_salary, period, is_executive, alsace_moselle, company_headcount }) => {
       const r = computeEmployerCost({

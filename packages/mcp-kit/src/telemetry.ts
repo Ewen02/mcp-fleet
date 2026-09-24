@@ -4,12 +4,16 @@
  * C'est la mesure produit de base : quels tools sont utilisés, combien de
  * fois, en combien de temps, avec quel taux d'erreur. Les arguments ne sont
  * JAMAIS journalisés (données personnelles).
+ *
+ * Tout handler de tool d'un serveur est enveloppé par instrument().
  */
-import { logger } from '../logger.js'
+import { type Logger, logger as processLogger } from './logger.js'
 
 export function instrument<Args extends unknown[], Result>(
   tool: string,
   handler: (...args: Args) => Promise<Result>,
+  // Injectable pour les tests ; en production, le logger du process.
+  logger: Logger = processLogger,
 ): (...args: Args) => Promise<Result> {
   return async (...args) => {
     const start = performance.now()

@@ -1,7 +1,9 @@
 /**
- * Briques partagées par tous les tools : champs d'entrée communes, schéma
- * de la source des règles, avertissements. Chaque tool les réutilise pour
- * que les clients reçoivent toujours la même structure.
+ * Briques partagées par les tools de paie-fr : champs d'entrée communs,
+ * schéma de la source des règles URSSAF, texte de fin de réponse.
+ *
+ * Les schémas communs à toute la famille de serveurs (`assumptions`,
+ * `warnings`, annotations read-only) viennent du kit.
  */
 import * as z from 'zod/v4'
 import { RULES_SOURCE } from '../domain/engine.js'
@@ -43,14 +45,6 @@ export const sourceSchema = z
   })
   .describe('Origin and vintage of the calculation rules.')
 
-export const assumptionsSchema = z
-  .array(z.string())
-  .describe('Assumptions applied to everything that was not specified. Always mention them when quoting a figure.')
-
-export const warningsSchema = z
-  .array(z.string())
-  .describe('Known limitations affecting this result. Mention them to the user when not empty.')
-
 export function source(documentation: string): z.infer<typeof sourceSchema> {
   return { ...RULES_SOURCE, documentation }
 }
@@ -65,18 +59,6 @@ export function footerLines(r: { assumptions: string[]; warnings: string[]; docu
 }
 
 // ─── Divers ──────────────────────────────────────────────────────────────────
-
-/**
- * Annotations communes : ces tools ne font que calculer.
- * Elles aident le client à décider s'il peut appeler le tool sans demander
- * de confirmation à l'utilisateur.
- */
-export const CALCULATION_ANNOTATIONS = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: false,
-} as const
 
 export const formatEuros = (amount: number): string =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'EUR' }).format(amount)

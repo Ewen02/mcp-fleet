@@ -11,8 +11,6 @@
     "noImplicitOverride": true,
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
-    "skipLibCheck": true,
-    "noEmit": true
-  },
-  "include": ["src", "test"]
+    "skipLibCheck": true
+  }
 }

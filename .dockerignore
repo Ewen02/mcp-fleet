@@ -1,11 +1,19 @@
-node_modules
-dist
+# Contexte du build : la racine du dépôt. On n'envoie à Docker que ce dont
+# le build a besoin ; le reste ralentit le build et invalide le cache.
 .git
-.github
-test
-*.log
-.env
-.env.*
-Dockerfile
-compose.yaml
+.turbo
+**/.turbo
+**/node_modules
+**/dist
+**/test
+**/deploy
 deploy
+docs
+scripts
+github-setup
+*.md
+**/*.md
+**/*.log
+# Jamais de secret dans une image, même par accident.
+**/.env
+**/.env.*

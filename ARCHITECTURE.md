@@ -1,38 +1,45 @@
-# Architecture — mcp-paie-fr
+# Architecture
 
 This document explains **why** the code is organized this way. It grows with each build step.
 
 ## Overview
 
+A monorepo of MCP servers sharing one runtime kit. Paths below are relative to the repository root; `kit/` stands for `packages/mcp-kit/src`, `paie-fr/` for `servers/paie-fr/src`.
+
 ```
 MCP client (Claude, Cursor, ChatGPT…)
         │  JSON-RPC 2.0
         ▼
-┌───────────────────────────┐
-│ Transport                 │  src/stdio.ts        (local)
-│                           │  src/http.ts         (remote: config + listen + process lifecycle)
-│                           │  src/http-app.ts     (routes, guards, rate limit, MCP handler)
-│                           │  src/config.ts       (env → validated config, fail fast)
+┌───────────────────────────┐  ── packages/mcp-kit (@repo/mcp-kit): knows nothing about any domain ──
+│ Transport                 │  kit/run-stdio.ts    (local: serveStdio + shutdown)
+│                           │  kit/run-http.ts     (remote: config + listen + process lifecycle)
+│                           │  kit/http-app.ts     (routes, guards, rate limit, MCP handler, /health)
+│                           │  kit/config.ts       (env → validated config, fail fast)
 ├───────────────────────────┤
-│ Cross-cutting             │  src/logger.ts       (JSON lines on stderr, no personal data)
-│                           │  src/tools/telemetry.ts (one log line per tool call)
+│ Cross-cutting             │  kit/logger.ts       (JSON lines on stderr, no personal data)
+│                           │  kit/telemetry.ts    (one log line per tool call)
+│                           │  kit/schemas.ts      (assumptions, warnings, read-only annotations)
 ├───────────────────────────┤
-│ MCP server (factory)      │  src/server.ts       wires the tools
+│ Contract                  │  kit/definition.ts   McpServerDefinition { info, createServer, health }
+╞═══════════════════════════╡  ── servers/paie-fr (mcp-paie-fr): injects its definition into the kit ──
+│ Entry points              │  paie-fr/stdio.ts, paie-fr/http.ts   one line each: runStdio / runHttp
 ├───────────────────────────┤
-│ Tool adapters             │  src/tools/*.ts      public contract: schemas, LLM text
+│ MCP server (definition)   │  paie-fr/server.ts   identity, factory wiring the tools, /health fields
 ├───────────────────────────┤
-│ Domain                    │  src/domain/salary.ts        net, employer cost
-│                           │  src/domain/income-tax.ts    household income tax
-│                           │  src/domain/known-issues.ts  upstream gaps, per version
+│ Tool adapters             │  paie-fr/tools/*.ts  public contract: schemas, LLM text
 ├───────────────────────────┤
-│ Engine                    │  src/domain/engine.ts        only file talking to publicodes
+│ Domain                    │  paie-fr/domain/salary.ts        net, employer cost
+│                           │  paie-fr/domain/income-tax.ts    household income tax
+│                           │  paie-fr/domain/known-issues.ts  upstream gaps, per version
+├───────────────────────────┤
+│ Engine                    │  paie-fr/domain/engine.ts        only file talking to publicodes
 └───────────────────────────┘
         │
         ▼
   publicodes + modele-social (URSSAF rules)
 ```
 
-Each layer only knows the one below it. The transport can change without touching the tools, and the engine version can change without touching the MCP contract.
+Each layer only knows the one below it. The transport can change without touching the tools, the engine version can change without touching the MCP contract, and a new server reuses the whole upper half without copying it (D23).
 
 ## Lifecycle of a `tools/call` request
 
@@ -49,7 +56,7 @@ Each layer only knows the one below it. The transport can change without touchin
 The 2026-07-28 spec makes MCP stateless (no more `initialize` or `Mcp-Session-Id`). SDK v2 implements it **and** automatically serves 2025 clients. Starting on v1 means a forced migration in a few months.
 
 ### D2 — Domain separated from tools
-`src/domain` knows nothing about MCP. Benefits: unit tests without the protocol, reusable (REST API, CLI, widget), and the public contract (`gross_salary`, snake_case) can evolve independently from the internal model (`grossSalary`).
+`paie-fr/domain` knows nothing about MCP. Benefits: unit tests without the protocol, reusable (REST API, CLI, widget), and the public contract (`gross_salary`, snake_case) can evolve independently from the internal model (`grossSalary`).
 Cost: ~10 lines of mapping per tool. Accepted.
 
 ### D3 — Engine parsed once, copied per request
@@ -77,7 +84,7 @@ Code, contract and docs are in English (public repo, portfolio, better tool sele
 `modele-social` 11.1.0 (npm) and the live URSSAF simulator disagree on the RGDU (June vs January 2026 SMIC; fixed upstream in `next`, unreleased). Patching the rule by hand would break the "no hand-coded rules" promise. Instead `known-issues.ts` lists gaps per version, and they surface in the `warnings` field. Upgrading the version removes them automatically; the pinned-version test forces a review.
 
 ### D11 — Every output has the same trailer: `assumptions`, `warnings`, `source`
-Shared schemas in `tools/shared.ts`. A client or an agent can rely on the same shape whatever the tool.
+`assumptions` and `warnings` schemas are shared by every server (`kit/schemas.ts`, D23); `source` is domain-specific (`paie-fr/tools/shared.ts`). A client or an agent can rely on the same shape whatever the tool.
 
 ### D12 — `dirigeant: non` in every situation
 `modele-social` also powers the company-director simulator and defaults `dirigeant` to `oui`. Without forcing it to `non`, the taxable income of an employee is 0 and the income tax is 0. Found while building `income_tax_estimate`; set once in `employeeSituation()`.
@@ -95,7 +102,7 @@ The engine derives the local regime from the establishment's département. Users
 `createMcpHandler(createServer)` builds a fresh `McpServer` per request (cheap: the rules are parsed once per process). No session store, so the server scales horizontally and survives restarts. 2025-era clients (`initialize`) are served statelessly too (`legacy: 'stateless'`).
 
 ### D17 — HTTP guards before the protocol
-`Host` allow-list (DNS rebinding), `Origin` allow-list (requests without `Origin`, i.e. server-to-server clients, pass), 64 KiB body limit (a tool call is < 1 KiB), `/mcp` only. Configuration comes from the environment (`src/http.ts`), the app itself is a pure function of its options (`src/http-app.ts`) so tests start it on a random port.
+`Host` allow-list (DNS rebinding), `Origin` allow-list (requests without `Origin`, i.e. server-to-server clients, pass), 64 KiB body limit (a tool call is < 1 KiB), `/mcp` only. Configuration comes from the environment (`kit/run-http.ts`), the app itself is a pure function of its options (`kit/http-app.ts`) so tests start it on a random port.
 
 ### D18 — No request body in logs
 A salary is personal data. Logs contain method, path, status and duration only. Nothing is stored: the server holds no user data at all, which keeps GDPR scope minimal.
@@ -111,7 +118,7 @@ The SDK types `method?: string` without `| undefined`; with `exactOptionalProper
 - **Timeouts**: Node keep-alive (65 s) longer than the proxy's, to avoid random 502s on reused connections.
 - **Process lifecycle**: crash on uncaught errors (Docker restarts cleanly), graceful shutdown on SIGTERM with an 8 s cap (Docker kills after 10 s). Shutdown order matters: stop accepting and close idle connections, let in-flight requests finish, then close the MCP handler (the reverse failed in-flight 2026-era calls; covered by a test that fails with the old order).
 - **Nothing in the request path may throw outside the try**: the path is parsed once, without throwing; an invalid request target (`//a:99999/`) gets a 400. Before this fix, one such request crashed the process.
-- **Single version source**: `package.json`, read at runtime by `server.ts`.
+- **Single version source**: the server's `package.json`, read at runtime (`readServerInfo()` in the kit since D23).
 - **Container**: multi-stage build, production dependencies only, non-root user, read-only filesystem, all capabilities dropped, memory/CPU/PID limits, healthcheck on `/health`, bound to `127.0.0.1` behind Caddy. Measured: ~55 MB RAM idle, stop in 0.2 s.
 - **Data minimization**: no Caddy access log (it would write client IPs to disk); the app logs requests without IP or body.
 - **CI/CD**: lint (Biome), typecheck, tests, build and `npm audit` on every PR; on `main`, image pushed to GHCR (`sha-…` + `latest`) and deployed over SSH with `docker compose up --wait`, then an HTTPS smoke test. Deployment is opt-in (`DEPLOY_ENABLED`).
@@ -123,10 +130,28 @@ The SDK types `method?: string` without `| undefined`; with `exactOptionalProper
 ### D22 — Independent review before going live
 A separate review pass (code reading + reproduction against the built image behind Caddy) found 7 issues, all fixed: a single-request crash, shutdown order, client IPs in Caddy error logs, IPv6 rate-limit bypass and unbounded memory, keep-alive race with Caddy, deploys cancellable by a new push, base image invisible to Dependabot. Lesson: tests written by the author mostly confirm the author's model; an adversarial pass finds what the model missed.
 
+### D23 — Monorepo: one kit, several servers (pnpm workspaces + Turborepo)
+The project is meant to host several MCP servers. Everything that is not a domain (transports, HTTP guards, rate limit, logs, telemetry, config, shutdown, common output schemas) was the same for all of them; copying it per server means fixing each bug N times. So:
+
+- **`packages/mcp-kit`** holds that infrastructure and **knows nothing about any domain**. What depends on the domain is **injected** by the server through one object, `McpServerDefinition { info, createServer, health }`: its identity, its MCP factory, and the fields it adds to `GET /health` (paie-fr adds the rules vintage). The kit never imports a server; a server's entry points are one line each (`runStdio(definition)`, `runHttp(definition)`).
+- **`servers/<name>`** holds the domain, the tools and the domain tests. One server = one package = one image.
+- **Where the boundary is**: *in the kit* if every server needs it identically (a guard, a log rule, the `assumptions`/`warnings` schemas of the output trailer from D11). *In the server* if it names a domain concept (`sourceSchema` with `modele_social_version`, `employeeFields`, the text footer).
+- **pnpm** because it enforces the boundary: a package can only import what it declares, so the kit physically cannot import a server (no phantom dependencies). A **catalog** (`pnpm-workspace.yaml`) gives shared dependencies one version: the kit and the servers must use the same instance of the MCP SDK and of zod, whose schemas the SDK converts to JSON Schema. pnpm 11 rather than 12: pnpm 12 ships a native binary that corepack (Node 22) cannot start, and pnpm 11 keeps the lockfile format read by Turborepo and Dependabot. pnpm 11 also refuses dependency install scripts unless allowed (`allowBuilds`).
+- **Turborepo** runs `lint`, `typecheck`, `test`, `build` from the root in dependency order (`dependsOn: ["^build"]`: the kit is compiled before a server is type-checked, tested or built), and caches results.
+- **The kit is a compiled internal package** (`dist/` + `.d.ts`, `exports` in its `package.json`), consumed with `workspace:*`: what runs in production is what the tests import. It is **not published** and there are **no changesets**: with one consumer, a version number for the kit would be ceremony. To revisit when a second repository needs it.
+- **Cost**: one more build step before server tests, and two `package.json` to keep aligned through the catalog. Accepted.
+
 ## Tests
 
-- `test/salary.test.ts`, `test/employer-cost.test.ts`, `test/income-tax.test.ts`: the domain, against reference values from the public mon-entreprise.urssaf.fr API (`POST /api/v1/evaluate`).
-- `test/stdio.e2e.test.ts`: the real server as a subprocess + the official client, all three tools, in both protocol eras.
-- `test/http.e2e.test.ts`: the HTTP app on a random port + the official Streamable HTTP client in both eras, plus the guards (foreign Host, foreign Origin, oversized body, 404, `/health`, request id, rate limit and `X-Forwarded-For` trust).
-- `test/config.test.ts`: safe defaults and fail-fast configuration.
-- `test/rate-limit.test.ts`: key normalization (IPv4-mapped, IPv6 /64), window reset, bounded memory.
+Run from the root with `pnpm test` (Turborepo, in dependency order).
+
+**`packages/mcp-kit/test`**: the infrastructure, with a domain-free `echo` server (`test/fixtures/echo-server.ts`).
+- `http-app.test.ts`: the HTTP app on a random port + the official Streamable HTTP client in both eras, the injected `/health` fields, the guards (foreign Host, foreign Origin, oversized body, 404, invalid target, request id), rate limiting and `X-Forwarded-For` trust, graceful shutdown with a request really in flight.
+- `stdio.test.ts`: stdout carries only JSON-RPC even at `LOG_LEVEL=debug`; logs go to stderr (D8).
+- `config.test.ts`, `rate-limit.test.ts`: safe defaults, fail-fast configuration, key normalization (IPv4-mapped, IPv6 /64), window reset, bounded memory.
+- `logger.test.ts`, `telemetry.test.ts`, `server-info.test.ts`: JSON lines and levels; one line per tool call without arguments or error messages; identity read from the server's `package.json`.
+
+**`servers/paie-fr/test`**: the domain and the server.
+- `salary.test.ts`, `employer-cost.test.ts`, `income-tax.test.ts`: the domain, against reference values from the public mon-entreprise.urssaf.fr API (`POST /api/v1/evaluate`).
+- `stdio.e2e.test.ts`: the real server as a subprocess + the official client, all three tools, in both protocol eras.
+- `http.e2e.test.ts`: the server's definition on the kit's HTTP app, both eras, `/health` with the rules vintage.

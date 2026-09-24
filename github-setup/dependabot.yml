@@ -1,5 +1,6 @@
 version: 2
 updates:
+  # pnpm : le lockfile et le catalogue (pnpm-workspace.yaml) de tout le workspace.
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -14,6 +15,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+  # Image de base épinglée par digest dans le Dockerfile (commun à tous les serveurs).
   - package-ecosystem: docker
     directory: /
     schedule:

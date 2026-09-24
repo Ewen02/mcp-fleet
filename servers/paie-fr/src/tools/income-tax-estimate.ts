@@ -3,21 +3,10 @@
  * Même structure que les autres tools ; seuls les champs du foyer s'ajoutent.
  */
 import type { McpServer } from '@modelcontextprotocol/server'
+import { assumptionsSchema, instrument, READ_ONLY_ANNOTATIONS, warningsSchema } from '@repo/mcp-kit'
 import * as z from 'zod/v4'
 import { computeIncomeTax } from '../domain/income-tax.js'
-import {
-  assumptionsSchema,
-  CALCULATION_ANNOTATIONS,
-  employeeFields,
-  footerLines,
-  formatEuros,
-  periodSchema,
-  periodSuffix,
-  source,
-  sourceSchema,
-  warningsSchema,
-} from './shared.js'
-import { instrument } from './telemetry.js'
+import { employeeFields, footerLines, formatEuros, periodSchema, periodSuffix, source, sourceSchema } from './shared.js'
 
 const inputSchema = z.object({
   ...employeeFields,
@@ -88,7 +77,7 @@ export function registerIncomeTaxEstimate(server: McpServer): void {
         'It is an estimate: it does not handle tax credits, deductions for actual expenses or non-salary income beyond the amount given.',
       inputSchema,
       outputSchema,
-      annotations: CALCULATION_ANNOTATIONS,
+      annotations: READ_ONLY_ANNOTATIONS,
     },
     instrument('income_tax_estimate', async (args) => {
       const r = computeIncomeTax(

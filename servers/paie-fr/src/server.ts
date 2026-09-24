@@ -1,29 +1,24 @@
 /**
- * Factory du serveur MCP : assemble les tools, ne fait rien d'autre.
+ * Définition du serveur paie-fr : son identité, sa factory MCP et ce qu'il
+ * ajoute à la sonde de santé. C'est tout ce que le kit reçoit de lui.
  *
  * Pourquoi une factory plutôt qu'une instance unique ? Le SDK v2 crée un
  * McpServer par connexion (stdio) ou par requête (HTTP stateless). La
  * factory doit donc être peu coûteuse et sans état : le travail lourd
  * (parsing des règles) est fait une fois, au chargement de domain/engine.ts.
  *
- * Les transports (stdio.ts et http-app.ts) importent tous cette même
- * factory : un seul endroit déclare ce que le serveur sait faire.
+ * Les deux points d'entrée (stdio.ts et http.ts) passent cette même
+ * définition au kit : un seul endroit déclare ce que le serveur sait faire.
  */
-import { readFileSync } from 'node:fs'
 import { McpServer } from '@modelcontextprotocol/server'
-import * as z from 'zod/v4'
+import { type McpServerDefinition, readServerInfo } from '@repo/mcp-kit'
+import { RULES_SOURCE } from './domain/engine.js'
 import { registerEmployerCost } from './tools/employer-cost.js'
 import { registerGrossToNet } from './tools/gross-to-net.js'
 import { registerIncomeTaxEstimate } from './tools/income-tax-estimate.js'
 
-// Une seule source de vérité pour la version : package.json. Lu à l'exécution
-// (et validé) plutôt qu'importé : il est hors de rootDir pour le build, et
 // `../package.json` pointe au même endroit depuis src/ comme depuis dist/.
-const pkg = z
-  .object({ name: z.string(), version: z.string() })
-  .parse(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')))
-
-export const SERVER_INFO = { name: pkg.name, version: pkg.version } as const
+export const SERVER_INFO = readServerInfo(new URL('../package.json', import.meta.url))
 
 export function createServer(): McpServer {
   const server = new McpServer(SERVER_INFO, {
@@ -39,4 +34,17 @@ export function createServer(): McpServer {
   registerIncomeTaxEstimate(server)
 
   return server
+}
+
+export const definition: McpServerDefinition = {
+  info: SERVER_INFO,
+  createServer,
+  // Le millésime des règles sur /health : on voit d'un coup d'œil quelle
+  // version du moteur URSSAF tourne en production.
+  health: () => ({
+    rules: {
+      modele_social_version: RULES_SOURCE.modele_social_version,
+      reference_date: RULES_SOURCE.reference_date,
+    },
+  }),
 }

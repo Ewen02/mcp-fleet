@@ -20,7 +20,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pinned=$(node -p "require('./package.json').dependencies['modele-social']")
+          pinned=$(node -p "require('./servers/paie-fr/package.json').dependencies['modele-social']")
           latest=$(npm view modele-social version)
           echo "pinned=$pinned latest=$latest"
           if [ "$pinned" = "$latest" ]; then exit 0; fi
@@ -30,9 +30,9 @@ jobs:
           fi
           gh issue create --title "$title" --body "A new version of the URSSAF rules is on npm.
 
-          Checklist:
+          Checklist (servers/paie-fr):
           - [ ] Read the modele-social CHANGELOG
-          - [ ] Bump the pinned version in package.json
+          - [ ] Bump the pinned version in servers/paie-fr/package.json
           - [ ] Update reference values in the tests against https://mon-entreprise.urssaf.fr/api/v1/evaluate
-          - [ ] Review src/domain/known-issues.ts (remove fixed gaps)
+          - [ ] Review servers/paie-fr/src/domain/known-issues.ts (remove fixed gaps)
           - [ ] Update the pinned-version test"

@@ -33,7 +33,7 @@ cp .env.example .env && nano .env      # IMAGE, MCP_DOMAIN
 ```
 
 ### Registry access
-The CI publishes the image to `ghcr.io/<github-user>/mcp-paie-fr`.
+The CI publishes the image to `ghcr.io/<github-user>/<repository>/mcp-paie-fr`.
 - Public repository: make the package public once (GitHub → Packages → mcp-paie-fr → Package settings → Change visibility).
 - Private repository: `docker login ghcr.io` on the VPS with a token that has `read:packages`.
 
@@ -45,7 +45,7 @@ curl -s https://mcp-paie.example.com/health
 
 ## 2. Continuous deployment (GitHub Actions)
 
-Every push to `main`: lint, typecheck, tests, build, `npm audit` → image pushed to GHCR (`latest` and `sha-<commit>`) → deployment over SSH → HTTPS smoke test.
+Every push to `main`: lint, typecheck, tests, build, `pnpm audit` → image pushed to GHCR (`latest` and `sha-<commit>`) → deployment over SSH → HTTPS smoke test.
 
 Deployment runs only when you opt in. In the repository settings:
 

@@ -1,34 +1,63 @@
 # syntax=docker/dockerfile:1
 
-# Image de production du serveur HTTP.
-# Trois étapes : build (TypeScript → dist), deps (dépendances de prod seules),
-# runtime (image minimale, utilisateur non-root, sans outils de build).
+# Image de production d'UN serveur MCP du monorepo, choisi au build :
+#
+#   docker build --build-arg SERVER=paie-fr -t mcp-paie-fr .
+#
+# SERVER est le nom du dossier dans servers/. Le contexte est toujours la
+# racine du dépôt : pnpm a besoin du lockfile et du workspace, et le serveur
+# a besoin du kit (packages/mcp-kit).
+#
+# Deux étapes : build (dépendances, TypeScript, paquet autonome) puis
+# runtime (image minimale, utilisateur non-root, sans npm ni pnpm).
 
 # Image de base écrite en entier et épinglée par digest : build reproductible,
 # et Dependabot peut proposer les mises à jour (il ne résout pas les ARG).
 FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS build
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY tsconfig.json tsconfig.build.json ./
-COPY src ./src
-RUN npm run build
+# pnpm vient de corepack, à la version de "packageManager" (package.json
+# racine) : une seule source de vérité, en local, en CI et ici.
+RUN corepack enable
+WORKDIR /repo
 
-FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS deps
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
+# 1. Téléchargement des dépendances. `pnpm fetch` ne lit que le lockfile :
+#    cette couche reste en cache tant qu'il ne change pas, même si le code
+#    change. Pas de cache mount ici : en CI (cache GitHub Actions), un cache
+#    mount n'est pas conservé entre deux runs, et l'install hors ligne
+#    ci-dessous échouerait.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm fetch
+
+# 2. Installation hors ligne, limitée au serveur demandé et à ce dont il
+#    dépend : `{dossier}...` = ce paquet et ses dépendances du workspace (le
+#    kit). Les accolades comptent : sans elles, pnpm ne prend que le dossier.
+COPY . .
+ARG SERVER
+RUN test -n "$SERVER" && test -f "servers/$SERVER/package.json" \
+    || { echo "Build arg SERVER must name a folder of servers/ (e.g. --build-arg SERVER=paie-fr)" >&2; exit 1; }
+RUN pnpm install --offline --frozen-lockfile --filter "{./servers/${SERVER}}..."
+
+# 3. Compilation dans l'ordre des dépendances (le kit, puis le serveur), puis
+#    paquet autonome : le serveur, ses dépendances de production et le kit
+#    compilé copié dedans. Ni sources, ni outils de build, ni autres serveurs.
+#    Pas de --offline pour `deploy` : pnpm 11 vérifie le lockfile réduit du
+#    paquet contre ses politiques supply-chain, ce qui lit les métadonnées du
+#    registre. Les paquets eux-mêmes viennent du store rempli par `fetch`.
+#    Le chmod rend l'image indépendante des droits du poste qui construit
+#    (un fichier en 600 sur le disque resterait illisible pour l'utilisateur node).
+RUN pnpm --filter "{./servers/${SERVER}}..." run build \
+ && pnpm --filter "./servers/${SERVER}" deploy --prod /prod \
+ && chmod -R a+rX,go-w /prod
 
 FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS runtime
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000
+
 WORKDIR /app
-# Fichiers possédés par root et lancés par `node` : le process ne peut pas
-# modifier son propre code (compatible avec un système de fichiers read-only).
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY package.json LICENSE NOTICE ./
+# Fichiers possédés par root et lancés par un autre utilisateur : le process
+# ne peut pas modifier son propre code (compatible read-only).
+COPY --from=build /prod ./
+COPY --chmod=0644 LICENSE ./
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

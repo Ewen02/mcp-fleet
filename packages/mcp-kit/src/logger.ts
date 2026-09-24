@@ -9,7 +9,7 @@
  * dépendance de moins à maintenir. À remplacer si les besoins grossissent.
  *
  * Règle : on ne journalise JAMAIS d'arguments de tool ni de body de requête
- * (un salaire est une donnée personnelle).
+ * (ils peuvent contenir des données personnelles : un salaire, une adresse…).
  */
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40, silent: 100 } as const
 

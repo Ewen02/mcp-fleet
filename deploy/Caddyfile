@@ -1,0 +1,35 @@
+# Configuration Caddy (hôte) pour mcp-paie-fr. Puis :
+#   sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+# Caddy obtient et renouvelle le certificat HTTPS automatiquement.
+
+# ─── Options globales : à placer UNE fois, tout en haut de /etc/caddy/Caddyfile ───
+# Caddy journalise les erreurs d'upstream (502 pendant un redémarrage…) avec
+# l'IP cliente et tous les headers. On retire ces champs : l'IP est une
+# donnée personnelle et PRIVACY.md promet qu'elle n'est jamais écrite.
+{
+	log default {
+		format filter {
+			request>remote_ip delete
+			request>client_ip delete
+			request>headers delete
+		}
+	}
+}
+
+# ─── Site ───
+# Pas de bloc `log` (access log) : l'application journalise déjà chaque
+# requête, sans IP ni body.
+mcp-paie.example.com {
+	reverse_proxy 127.0.0.1:3000 {
+		# Réponses MCP en SSE : transmettre chaque événement sans bufferiser.
+		flush_interval -1
+		transport http {
+			# Plus court que le keep-alive de Node (65 s) : c'est toujours
+			# Caddy qui ferme une connexion inactive, jamais Node pendant
+			# que Caddy la réutilise (sinon 502 aléatoires).
+			keepalive 30s
+		}
+	}
+	# Ne pas annoncer la techno du serveur.
+	header -Server
+}

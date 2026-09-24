@@ -1,0 +1,38 @@
+# Veille hebdomadaire : ouvre une issue quand une nouvelle version de
+# modele-social est publiée. La montée de version reste manuelle (voir AGENTS.md).
+name: Rules watch
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check-modele-social:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compare pinned and latest versions
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pinned=$(node -p "require('./package.json').dependencies['modele-social']")
+          latest=$(npm view modele-social version)
+          echo "pinned=$pinned latest=$latest"
+          if [ "$pinned" = "$latest" ]; then exit 0; fi
+          title="modele-social $latest is available (pinned: $pinned)"
+          if gh issue list --state open --search "in:title \"$title\"" --json number --jq 'length' | grep -qv '^0$'; then
+            echo "Issue already open"; exit 0
+          fi
+          gh issue create --title "$title" --body "A new version of the URSSAF rules is on npm.
+
+          Checklist:
+          - [ ] Read the modele-social CHANGELOG
+          - [ ] Bump the pinned version in package.json
+          - [ ] Update reference values in the tests against https://mon-entreprise.urssaf.fr/api/v1/evaluate
+          - [ ] Review src/domain/known-issues.ts (remove fixed gaps)
+          - [ ] Update the pinned-version test"

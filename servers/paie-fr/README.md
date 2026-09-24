@@ -23,9 +23,11 @@ Every result includes `assumptions`, `warnings` (known limitations) and `source`
 From the repository root (Turborepo builds the kit first):
 
 ```bash
-pnpm turbo run test --filter=mcp-paie-fr    # domain tests (vs. the public URSSAF API), stdio and HTTP e2e
+pnpm turbo run test --filter=mcp-paie-fr    # domain tests (vs. the public URSSAF API), stdio and HTTP e2e, contract snapshot
 pnpm turbo run build --filter=mcp-paie-fr   # the kit, then this server
 ```
+
+Intended change of the public contract (tool descriptions, schemas, results): `pnpm build`, then `pnpm --filter mcp-paie-fr test:update-contract`, and review the diff of `test/contract.test.ts.snapshot`.
 
 ## Local setup (stdio)
 

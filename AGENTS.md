@@ -23,6 +23,7 @@ Rules for anyone (human or AI agent) writing code in this repository.
 - Every tool result returns `assumptions`, `warnings` (schemas from the kit) and `source` (defined by the server).
 - Tool handlers are wrapped with `instrument()` from the kit (telemetry). Pure calculations use `READ_ONLY_ANNOTATIONS`.
 - The domain (`src/domain/*`) never imports MCP. Tools (`src/tools/*`) only map the public contract (snake_case) to the domain (camelCase) and back.
+- The public contract is snapshotted (`test/contract.test.ts`). Changing it is a decision: `pnpm build`, `pnpm --filter <package> test:update-contract`, then review the snapshot diff.
 
 ## paie-fr specifics
 

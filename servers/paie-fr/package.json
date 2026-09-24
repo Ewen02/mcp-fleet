@@ -24,6 +24,7 @@
     "start:http": "node dist/http.js",
     "typecheck": "tsc --noEmit",
     "test": "LOG_LEVEL=silent node --import tsx --test test/*.test.ts",
+    "test:update-contract": "LOG_LEVEL=silent node --import tsx --test --test-update-snapshots test/contract.test.ts",
     "lint": "biome check .",
     "inspect": "pnpm run build && pnpm dlx @modelcontextprotocol/inspector node dist/stdio.js"
   },

@@ -141,6 +141,9 @@ The project is meant to host several MCP servers. Everything that is not a domai
 - **The kit is a compiled internal package** (`dist/` + `.d.ts`, `exports` in its `package.json`), consumed with `workspace:*`: what runs in production is what the tests import. It is **not published** and there are **no changesets**: with one consumer, a version number for the kit would be ceremony. To revisit when a second repository needs it.
 - **Cost**: one more build step before server tests, and two `package.json` to keep aligned through the catalog. Accepted.
 
+### D25 — The public contract is a snapshot
+The kit is shared: a change in a common schema, or an upgrade of zod or of the SDK, can change what every server exposes to the model without breaking any value test. `servers/paie-fr/test/contract.test.ts` snapshots `tools/list` (names, descriptions, JSON Schemas, annotations) and five representative results. Any difference fails; an intended change is regenerated with `test:update-contract` and reviewed as a diff. The initial snapshot was generated after checking byte-for-byte equality with v0.4.0 (tools/list + 20 calls, both protocol eras, stdio and HTTP).
+
 ### D26 — Shutdown closes kept-alive connections after the in-flight response
 Found while moving the HTTP app into the kit: the graceful-shutdown test took 63 s. `server.close()` only closes connections idle *at that moment*; the connection serving an in-flight request stayed open after its response until Node's keep-alive timeout (65 s). In production, a SIGTERM during a request therefore ended in `forced_exit` after the 8 s cap, with exit code 1. Now, during shutdown, responses carry `Connection: close` (or the socket is ended after the response when headers are already sent), so the process stops right after the last response. The test asserts `close()` finishes in under 5 s (58 ms measured); the whole test suite went from ~65 s to ~7 s. This is the only behavior change of the monorepo migration.
 
@@ -158,3 +161,4 @@ Run from the root with `pnpm test` (Turborepo, in dependency order).
 - `salary.test.ts`, `employer-cost.test.ts`, `income-tax.test.ts`: the domain, against reference values from the public mon-entreprise.urssaf.fr API (`POST /api/v1/evaluate`).
 - `stdio.e2e.test.ts`: the real server as a subprocess + the official client, all three tools, in both protocol eras.
 - `http.e2e.test.ts`: the server's definition on the kit's HTTP app, both eras, `/health` with the rules vintage.
+- `contract.test.ts`: the public contract snapshot (D25).

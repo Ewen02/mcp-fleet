@@ -35,4 +35,5 @@ jobs:
           - [ ] Bump the pinned version in servers/paie-fr/package.json
           - [ ] Update reference values in the tests against https://mon-entreprise.urssaf.fr/api/v1/evaluate
           - [ ] Review servers/paie-fr/src/domain/known-issues.ts (remove fixed gaps)
-          - [ ] Update the pinned-version test"
+          - [ ] Update the pinned-version test
+          - [ ] Review the contract snapshot diff (pnpm build && pnpm --filter mcp-paie-fr test:update-contract)"

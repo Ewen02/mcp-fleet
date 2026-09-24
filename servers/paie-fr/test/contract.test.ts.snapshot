@@ -1,0 +1,668 @@
+exports[`employer_cost {\"gross_salary\":3200,\"company_headcount\":50} 1`] = `
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Gross €3,200.00/month → total employer cost €4,352.03/month.\\nEmployer contributions: €1,152.03/month (after a general reduction of €283.84/month).\\nThe employee receives €2,511.17/month before income tax: the cost is 1.73× the net.\\nAssumptions: Non-executive status (non-cadre); Contract type: CDI; Full-time; Collective agreement: droit commun; Company headcount: 50 employees; Outside Alsace-Moselle; No bonuses, overtime, benefits in kind or meal vouchers; Work-accident rate (taux AT/MP): 2.08% (simulator default; the real rate depends on the company's sector and history).\\nWarning: modele-social 11.1.0 computes the general contribution reduction (RGDU) with the June 2026 minimum wage (SMIC); the live URSSAF simulator uses the January 2026 SMIC (fix published upstream, not yet released on npm). For salaries up to about 3× SMIC, the employer cost may be understated by roughly €5 to €110 per month.\\nWarning: Transport tax (versement mobilité) not included: it applies from 11 employees at a rate set by the commune (up to a few percent of gross salary in large cities). The real employer cost is higher for such companies.\\nSource: URSSAF modele-social 11.1.0 engine, rules as of 2026-07-01 — https://mon-entreprise.urssaf.fr/documentation/salari%C3%A9/co%C3%BBt-total-employeur"
+    }
+  ],
+  "structuredContent": {
+    "gross_salary": 3200,
+    "period": "monthly",
+    "total_employer_cost": 4352.03,
+    "employer_contributions": 1152.03,
+    "general_reduction": 283.84,
+    "net_before_income_tax": 2511.17,
+    "cost_to_net_ratio": 1.73,
+    "assumptions": [
+      "Non-executive status (non-cadre)",
+      "Contract type: CDI",
+      "Full-time",
+      "Collective agreement: droit commun",
+      "Company headcount: 50 employees",
+      "Outside Alsace-Moselle",
+      "No bonuses, overtime, benefits in kind or meal vouchers",
+      "Work-accident rate (taux AT/MP): 2.08% (simulator default; the real rate depends on the company's sector and history)"
+    ],
+    "warnings": [
+      "modele-social 11.1.0 computes the general contribution reduction (RGDU) with the June 2026 minimum wage (SMIC); the live URSSAF simulator uses the January 2026 SMIC (fix published upstream, not yet released on npm). For salaries up to about 3× SMIC, the employer cost may be understated by roughly €5 to €110 per month.",
+      "Transport tax (versement mobilité) not included: it applies from 11 employees at a rate set by the commune (up to a few percent of gross salary in large cities). The real employer cost is higher for such companies."
+    ],
+    "source": {
+      "engine": "publicodes + modele-social (URSSAF / beta.gouv.fr)",
+      "modele_social_version": "11.1.0",
+      "reference_date": "2026-07-01",
+      "year": 2026,
+      "license": "MIT",
+      "repository": "https://github.com/betagouv/mon-entreprise/tree/master/modele-social",
+      "documentation": "https://mon-entreprise.urssaf.fr/documentation/salari%C3%A9/co%C3%BBt-total-employeur"
+    }
+  }
+}
+`;
+
+exports[`employer_cost {\"gross_salary\":3200,\"is_executive\":true} 1`] = `
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Gross €3,200.00/month → total employer cost €4,360.22/month.\\nEmployer contributions: €1,160.22/month (after a general reduction of €281.60/month).\\nThe employee receives €2,505.75/month before income tax: the cost is 1.74× the net.\\nAssumptions: Executive status (cadre); Contract type: CDI; Full-time; Collective agreement: droit commun; Company headcount: 4 employees (simulator default); Outside Alsace-Moselle; No bonuses, overtime, benefits in kind or meal vouchers; Work-accident rate (taux AT/MP): 2.08% (simulator default; the real rate depends on the company's sector and history).\\nWarning: modele-social 11.1.0 computes the general contribution reduction (RGDU) with the June 2026 minimum wage (SMIC); the live URSSAF simulator uses the January 2026 SMIC (fix published upstream, not yet released on npm). For salaries up to about 3× SMIC, the employer cost may be understated by roughly €5 to €110 per month.\\nSource: URSSAF modele-social 11.1.0 engine, rules as of 2026-07-01 — https://mon-entreprise.urssaf.fr/documentation/salari%C3%A9/co%C3%BBt-total-employeur"
+    }
+  ],
+  "structuredContent": {
+    "gross_salary": 3200,
+    "period": "monthly",
+    "total_employer_cost": 4360.22,
+    "employer_contributions": 1160.22,
+    "general_reduction": 281.6,
+    "net_before_income_tax": 2505.75,
+    "cost_to_net_ratio": 1.74,
+    "assumptions": [
+      "Executive status (cadre)",
+      "Contract type: CDI",
+      "Full-time",
+      "Collective agreement: droit commun",
+      "Company headcount: 4 employees (simulator default)",
+      "Outside Alsace-Moselle",
+      "No bonuses, overtime, benefits in kind or meal vouchers",
+      "Work-accident rate (taux AT/MP): 2.08% (simulator default; the real rate depends on the company's sector and history)"
+    ],
+    "warnings": [
+      "modele-social 11.1.0 computes the general contribution reduction (RGDU) with the June 2026 minimum wage (SMIC); the live URSSAF simulator uses the January 2026 SMIC (fix published upstream, not yet released on npm). For salaries up to about 3× SMIC, the employer cost may be understated by roughly €5 to €110 per month."
+    ],
+    "source": {
+      "engine": "publicodes + modele-social (URSSAF / beta.gouv.fr)",
+      "modele_social_version": "11.1.0",
+      "reference_date": "2026-07-01",
+      "year": 2026,
+      "license": "MIT",
+      "repository": "https://github.com/betagouv/mon-entreprise/tree/master/modele-social",
+      "documentation": "https://mon-entreprise.urssaf.fr/documentation/salari%C3%A9/co%C3%BBt-total-employeur"
+    }
+  }
+}
+`;
+
+exports[`gross_to_net {\"gross_salary\":-10} 1`] = `
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Input validation error: Invalid arguments for tool gross_to_net: gross_salary: Too small: expected number to be >0"
+    }
+  ],
+  "isError": true
+}
+`;
+
+exports[`gross_to_net {\"gross_salary\":3000} 1`] = `
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Gross €3,000.00/month → net before income tax €2,352.85/month.\\nTaxable net: €2,458.91/month. Employee contributions: €647.15/month.\\nAssumptions: Non-executive status (non-cadre); Contract type: CDI; Full-time; Collective agreement: droit commun; Company headcount: 4 employees (simulator default); Outside Alsace-Moselle; No bonuses, overtime, benefits in kind or meal vouchers.\\nSource: URSSAF modele-social 11.1.0 engine, rules as of 2026-07-01 — https://mon-entreprise.urssaf.fr/documentation/salari%C3%A9/r%C3%A9mun%C3%A9ration/net/%C3%A0-payer-avant-imp%C3%B4t"
+    }
+  ],
+  "structuredContent": {
+    "gross_salary": 3000,
+    "period": "monthly",
+    "net_before_income_tax": 2352.85,
+    "taxable_net": 2458.91,
+    "employee_contributions": 647.15,
+    "assumptions": [
+      "Non-executive status (non-cadre)",
+      "Contract type: CDI",
+      "Full-time",
+      "Collective agreement: droit commun",
+      "Company headcount: 4 employees (simulator default)",
+      "Outside Alsace-Moselle",
+      "No bonuses, overtime, benefits in kind or meal vouchers"
+    ],
+    "warnings": [],
+    "source": {
+      "engine": "publicodes + modele-social (URSSAF / beta.gouv.fr)",
+      "modele_social_version": "11.1.0",
+      "reference_date": "2026-07-01",
+      "year": 2026,
+      "license": "MIT",
+      "repository": "https://github.com/betagouv/mon-entreprise/tree/master/modele-social",
+      "documentation": "https://mon-entreprise.urssaf.fr/documentation/salari%C3%A9/r%C3%A9mun%C3%A9ration/net/%C3%A0-payer-avant-imp%C3%B4t"
+    }
+  }
+}
+`;
+
+exports[`income_tax_estimate {\"gross_salary\":3200,\"is_executive\":true,\"family_situation\":\"couple\",\"dependent_children\":2,\"other_taxable_income\":30000} 1`] = `
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Household income tax: €2,352.00/year (3 tax shares, effective rate 3.79%, taxable income €58,802.00/year).\\nOn this salary: withholding €101.17/month, net €2,505.75/month before tax → €2,404.58/month after tax.\\nAssumptions: Executive status (cadre); Contract type: CDI; Full-time; Collective agreement: droit commun; Company headcount: 4 employees (simulator default); Outside Alsace-Moselle; No bonuses, overtime, benefits in kind or meal vouchers; Official progressive income tax scale (barème) in force at the reference date, applied to a full year of this salary; Standard deduction for professional expenses (no actual expenses claimed); Other household income is added as-is to the taxable income; Withholding tax computed at the household effective rate (taux effectif).\\nSource: URSSAF modele-social 11.1.0 engine, rules as of 2026-07-01 — https://mon-entreprise.urssaf.fr/documentation/imp%C3%B4t/foyer-fiscal/imp%C3%B4t-%C3%A0-payer"
+    }
+  ],
+  "structuredContent": {
+    "gross_salary": 3200,
+    "period": "monthly",
+    "household_taxable_income": 58802,
+    "annual_income_tax": 2352,
+    "effective_tax_rate": 3.79,
+    "tax_shares": 3,
+    "withholding_tax": 101.17,
+    "net_before_income_tax": 2505.75,
+    "net_after_income_tax": 2404.58,
+    "assumptions": [
+      "Executive status (cadre)",
+      "Contract type: CDI",
+      "Full-time",
+      "Collective agreement: droit commun",
+      "Company headcount: 4 employees (simulator default)",
+      "Outside Alsace-Moselle",
+      "No bonuses, overtime, benefits in kind or meal vouchers",
+      "Official progressive income tax scale (barème) in force at the reference date, applied to a full year of this salary",
+      "Standard deduction for professional expenses (no actual expenses claimed)",
+      "Other household income is added as-is to the taxable income",
+      "Withholding tax computed at the household effective rate (taux effectif)"
+    ],
+    "warnings": [],
+    "source": {
+      "engine": "publicodes + modele-social (URSSAF / beta.gouv.fr)",
+      "modele_social_version": "11.1.0",
+      "reference_date": "2026-07-01",
+      "year": 2026,
+      "license": "MIT",
+      "repository": "https://github.com/betagouv/mon-entreprise/tree/master/modele-social",
+      "documentation": "https://mon-entreprise.urssaf.fr/documentation/imp%C3%B4t/foyer-fiscal/imp%C3%B4t-%C3%A0-payer"
+    }
+  }
+}
+`;
+
+exports[`tools/list: names, descriptions, schemas and annotations 1`] = `
+[
+  {
+    "name": "gross_to_net",
+    "title": "Gross → net salary (France)",
+    "description": "Converts a gross salary (salaire brut) into net salary (salaire net) for a private-sector employee in France, using the official URSSAF calculation engine (mon-entreprise.urssaf.fr). Use it whenever someone asks how much a gross salary is in net, or for the amount of employee contributions (cotisations salariales). Returns net before income tax, taxable net, contributions, the assumptions applied and the source of the rules (including the year). For employer cost use employer_cost; for income tax or net after tax use income_tax_estimate.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "gross_salary": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 10000000,
+          "description": "Gross salary in euros (salaire brut), excluding bonuses. E.g. 3000 for €3,000 gross per month."
+        },
+        "period": {
+          "default": "monthly",
+          "description": "Period of the given gross salary. Amounts are returned for the same period unless stated otherwise.",
+          "type": "string",
+          "enum": [
+            "monthly",
+            "yearly"
+          ]
+        },
+        "is_executive": {
+          "default": false,
+          "description": "true if the employee has French executive status (statut cadre).",
+          "type": "boolean"
+        },
+        "alsace_moselle": {
+          "default": false,
+          "description": "true if the employee works in Bas-Rhin, Haut-Rhin or Moselle (régime local Alsace-Moselle: extra employee health contribution).",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "gross_salary"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "gross_salary": {
+          "type": "number"
+        },
+        "period": {
+          "type": "string",
+          "enum": [
+            "monthly",
+            "yearly"
+          ]
+        },
+        "net_before_income_tax": {
+          "type": "number",
+          "description": "Net amount paid to the employee before withholding tax (net à payer avant impôt)."
+        },
+        "taxable_net": {
+          "type": "number",
+          "description": "Base for withholding tax and the income tax return (net imposable)."
+        },
+        "employee_contributions": {
+          "type": "number",
+          "description": "Employee social contributions (cotisations salariales)."
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Assumptions applied to everything that was not specified. Always mention them when quoting a figure."
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Known limitations affecting this result. Mention them to the user when not empty."
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "engine": {
+              "type": "string"
+            },
+            "modele_social_version": {
+              "type": "string"
+            },
+            "reference_date": {
+              "type": "string",
+              "description": "Date at which the rules (rates, ceilings) are evaluated, ISO format."
+            },
+            "year": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991,
+              "description": "Year of the applied rules."
+            },
+            "license": {
+              "type": "string"
+            },
+            "repository": {
+              "type": "string"
+            },
+            "documentation": {
+              "type": "string",
+              "description": "Official page detailing the calculation on mon-entreprise.urssaf.fr."
+            }
+          },
+          "required": [
+            "engine",
+            "modele_social_version",
+            "reference_date",
+            "year",
+            "license",
+            "repository",
+            "documentation"
+          ],
+          "additionalProperties": false,
+          "description": "Origin and vintage of the calculation rules."
+        }
+      },
+      "required": [
+        "gross_salary",
+        "period",
+        "net_before_income_tax",
+        "taxable_net",
+        "employee_contributions",
+        "assumptions",
+        "warnings",
+        "source"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "employer_cost",
+    "title": "Employer cost of a salary (France)",
+    "description": "Computes the total cost of an employee for the employer in France (coût employeur, coût total, salaire chargé, super brut) from a gross salary (salaire brut), using the official URSSAF calculation engine (mon-entreprise.urssaf.fr). Use it for ANY question about how much an employee costs, employer contributions (cotisations patronales) or the gap between cost and net. Returns total employer cost, employer contributions, the general reduction applied (RGDU), the net for comparison, assumptions, warnings and the source of the rules.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "gross_salary": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 10000000,
+          "description": "Gross salary in euros (salaire brut), excluding bonuses. E.g. 3000 for €3,000 gross per month."
+        },
+        "period": {
+          "default": "monthly",
+          "description": "Period of the given gross salary. Amounts are returned for the same period unless stated otherwise.",
+          "type": "string",
+          "enum": [
+            "monthly",
+            "yearly"
+          ]
+        },
+        "is_executive": {
+          "default": false,
+          "description": "true if the employee has French executive status (statut cadre).",
+          "type": "boolean"
+        },
+        "alsace_moselle": {
+          "default": false,
+          "description": "true if the employee works in Bas-Rhin, Haut-Rhin or Moselle (régime local Alsace-Moselle: extra employee health contribution).",
+          "type": "boolean"
+        },
+        "company_headcount": {
+          "description": "Number of employees in the company (effectif). Affects some employer rates. Omit if unknown.",
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 1000000
+        }
+      },
+      "required": [
+        "gross_salary"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "gross_salary": {
+          "type": "number"
+        },
+        "period": {
+          "type": "string",
+          "enum": [
+            "monthly",
+            "yearly"
+          ]
+        },
+        "total_employer_cost": {
+          "type": "number",
+          "description": "Total cost for the employer: gross salary + employer contributions, after reductions (coût total employeur, \\"salaire chargé\\")."
+        },
+        "employer_contributions": {
+          "type": "number",
+          "description": "Employer social contributions after reductions (cotisations patronales)."
+        },
+        "general_reduction": {
+          "type": "number",
+          "description": "General contribution reduction already deducted, 0 above ~3× minimum wage (réduction générale dégressive unique, RGDU)."
+        },
+        "net_before_income_tax": {
+          "type": "number",
+          "description": "What the employee receives before withholding tax, for comparison."
+        },
+        "cost_to_net_ratio": {
+          "type": "number",
+          "description": "total_employer_cost / net_before_income_tax."
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Assumptions applied to everything that was not specified. Always mention them when quoting a figure."
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Known limitations affecting this result. Mention them to the user when not empty."
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "engine": {
+              "type": "string"
+            },
+            "modele_social_version": {
+              "type": "string"
+            },
+            "reference_date": {
+              "type": "string",
+              "description": "Date at which the rules (rates, ceilings) are evaluated, ISO format."
+            },
+            "year": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991,
+              "description": "Year of the applied rules."
+            },
+            "license": {
+              "type": "string"
+            },
+            "repository": {
+              "type": "string"
+            },
+            "documentation": {
+              "type": "string",
+              "description": "Official page detailing the calculation on mon-entreprise.urssaf.fr."
+            }
+          },
+          "required": [
+            "engine",
+            "modele_social_version",
+            "reference_date",
+            "year",
+            "license",
+            "repository",
+            "documentation"
+          ],
+          "additionalProperties": false,
+          "description": "Origin and vintage of the calculation rules."
+        }
+      },
+      "required": [
+        "gross_salary",
+        "period",
+        "total_employer_cost",
+        "employer_contributions",
+        "general_reduction",
+        "net_before_income_tax",
+        "cost_to_net_ratio",
+        "assumptions",
+        "warnings",
+        "source"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "income_tax_estimate",
+    "title": "Income tax estimate (France)",
+    "description": "Estimates French income tax (impôt sur le revenu) for a household whose main income is a salary, from the gross salary (salaire brut) and the household situation, using the official URSSAF calculation engine (mon-entreprise.urssaf.fr) with the official progressive scale, family quotient (quotient familial) and discount (décote). Use it for questions about income tax, tax rate, withholding tax (prélèvement à la source) or net salary after tax (net après impôt). Returns the annual tax of the household, the effective rate, the tax shares, the withholding and net after tax for the requested period, assumptions and the source of the rules. It is an estimate: it does not handle tax credits, deductions for actual expenses or non-salary income beyond the amount given.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "gross_salary": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 10000000,
+          "description": "Gross salary in euros (salaire brut), excluding bonuses. E.g. 3000 for €3,000 gross per month."
+        },
+        "period": {
+          "default": "monthly",
+          "description": "Period of the given gross salary. Amounts are returned for the same period unless stated otherwise.",
+          "type": "string",
+          "enum": [
+            "monthly",
+            "yearly"
+          ]
+        },
+        "is_executive": {
+          "default": false,
+          "description": "true if the employee has French executive status (statut cadre).",
+          "type": "boolean"
+        },
+        "alsace_moselle": {
+          "default": false,
+          "description": "true if the employee works in Bas-Rhin, Haut-Rhin or Moselle (régime local Alsace-Moselle: extra employee health contribution).",
+          "type": "boolean"
+        },
+        "family_situation": {
+          "default": "single",
+          "description": "Tax household status: single (célibataire, divorcé), couple (marié ou pacsé, joint return), widowed (veuf).",
+          "type": "string",
+          "enum": [
+            "single",
+            "couple",
+            "widowed"
+          ]
+        },
+        "dependent_children": {
+          "default": 0,
+          "description": "Number of dependent children in the tax household (enfants à charge).",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "single_parent": {
+          "default": false,
+          "description": "true if a single person lives alone with their children (parent isolé, case T). Ignored otherwise.",
+          "type": "boolean"
+        },
+        "other_taxable_income": {
+          "default": 0,
+          "description": "Other annual taxable income of the household in euros, added as-is (e.g. the spouse’s taxable income after the 10% deduction). Leave 0 for a single-income household.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100000000
+        }
+      },
+      "required": [
+        "gross_salary"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "outputSchema": {
+      "type": "object",
+      "properties": {
+        "gross_salary": {
+          "type": "number"
+        },
+        "period": {
+          "type": "string",
+          "enum": [
+            "monthly",
+            "yearly"
+          ]
+        },
+        "household_taxable_income": {
+          "type": "number",
+          "description": "Annual taxable income of the household (revenu net imposable du foyer)."
+        },
+        "annual_income_tax": {
+          "type": "number",
+          "description": "Annual income tax due by the household (impôt sur le revenu), yearly amount."
+        },
+        "effective_tax_rate": {
+          "type": "number",
+          "description": "Household effective tax rate in percent (taux effectif)."
+        },
+        "tax_shares": {
+          "type": "number",
+          "description": "Number of tax shares (nombre de parts de quotient familial)."
+        },
+        "withholding_tax": {
+          "type": "number",
+          "description": "Income tax withheld on this salary for the requested period (prélèvement à la source)."
+        },
+        "net_before_income_tax": {
+          "type": "number",
+          "description": "Net salary before withholding tax, for the requested period."
+        },
+        "net_after_income_tax": {
+          "type": "number",
+          "description": "Net salary actually received after withholding tax (net payé après impôt), for the requested period."
+        },
+        "assumptions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Assumptions applied to everything that was not specified. Always mention them when quoting a figure."
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Known limitations affecting this result. Mention them to the user when not empty."
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "engine": {
+              "type": "string"
+            },
+            "modele_social_version": {
+              "type": "string"
+            },
+            "reference_date": {
+              "type": "string",
+              "description": "Date at which the rules (rates, ceilings) are evaluated, ISO format."
+            },
+            "year": {
+              "type": "integer",
+              "minimum": -9007199254740991,
+              "maximum": 9007199254740991,
+              "description": "Year of the applied rules."
+            },
+            "license": {
+              "type": "string"
+            },
+            "repository": {
+              "type": "string"
+            },
+            "documentation": {
+              "type": "string",
+              "description": "Official page detailing the calculation on mon-entreprise.urssaf.fr."
+            }
+          },
+          "required": [
+            "engine",
+            "modele_social_version",
+            "reference_date",
+            "year",
+            "license",
+            "repository",
+            "documentation"
+          ],
+          "additionalProperties": false,
+          "description": "Origin and vintage of the calculation rules."
+        }
+      },
+      "required": [
+        "gross_salary",
+        "period",
+        "household_taxable_income",
+        "annual_income_tax",
+        "effective_tax_rate",
+        "tax_shares",
+        "withholding_tax",
+        "net_before_income_tax",
+        "net_after_income_tax",
+        "assumptions",
+        "warnings",
+        "source"
+      ],
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "additionalProperties": false
+    },
+    "annotations": {
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  }
+]
+`;

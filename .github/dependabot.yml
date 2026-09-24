@@ -11,6 +11,11 @@ updates:
     ignore:
       # Montée de version volontaire uniquement (voir le workflow rules-watch).
       - dependency-name: modele-social
+      # Les types de Node suivent la version de Node en production (22) : ceux
+      # d'un major plus récent laisseraient passer au typecheck des API absentes
+      # à l'exécution. Ils changent de major avec le runtime, pas avant.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -20,3 +25,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # Node reste sur une version LTS et change de major par une décision
+      # (image, @types/node et tests ensemble). Les correctifs du major en
+      # cours (nouveau digest de 22-alpine) restent proposés. Exemple évité :
+      # Node 25, version impaire sans LTS et sans corepack, qui cassait le build.
+      - dependency-name: node
+        update-types: ['version-update:semver-major']

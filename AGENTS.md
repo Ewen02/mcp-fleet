@@ -46,6 +46,14 @@ Rules for anyone (human or AI agent) writing code in this repository.
 - A server's compose file (`servers/<name>/deploy/docker-compose.yml`) never publishes a port: only the central Caddy does.
 - `.github/` is write-protected from Cowork: when working from Cowork, write workflow changes in a `github-setup/` folder, then move them into `.github/` from a terminal or Claude Code. Never keep both copies.
 
+## Commits
+
+- **Atomic commits**: one logical change per commit (a refactor, a fix, a feature, a dependency bump, a doc update), never several mixed together. A bug found while refactoring gets its own commit, with its test.
+- **Every commit works on its own**: `pnpm check` passes at each commit, so any commit can be reviewed, reverted or bisected alone. A change that needs code, tests and docs to make sense goes in one commit; unrelated changes made in the same session are split.
+- **Message in English**: an imperative subject line of 72 characters at most (`Add rate limit per IPv6 /64`), then a body explaining *why* when it is not obvious.
+- **No mention of Claude or of any AI assistant** in commit messages, pull request titles or descriptions: no `Co-Authored-By` trailer, no "Generated with" line, no tool name.
+- The CI checks the last two rules on every push and pull request (`scripts/check-commit-messages.mjs`). Atomicity cannot be checked by a script: it is the reviewer's job.
+
 ## Checks before committing
 
 From the root (Turborepo runs them in dependency order and caches the results):

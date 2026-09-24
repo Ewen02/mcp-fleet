@@ -1,5 +1,6 @@
 # Intégration et livraison continues du monorepo.
 #
+#   commits règles de commit d'AGENTS.md (aucune attribution à une IA, titre ≤ 72)
 #   check   lint, types, tests, build des paquets touchés (Turborepo --affected)
 #           + audit des dépendances de prod + liste des serveurs à livrer
 #   image   une image par serveur touché : build, test de fumée durci,
@@ -35,6 +36,34 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  commits:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: No AI attribution, subject of 72 characters at most (AGENTS.md § Commits)
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # Script sans dépendance : le Node du runner suffit.
+          case "$EVENT" in
+            pull_request) node scripts/check-commit-messages.mjs "$PR_BASE" "$PR_HEAD" ;;
+            push)
+              if [ "$BEFORE" != "0000000000000000000000000000000000000000" ] \
+                 && git cat-file -e "${BEFORE}^{commit}" 2>/dev/null; then
+                node scripts/check-commit-messages.mjs "$BEFORE" "$GITHUB_SHA"
+              else
+                node scripts/check-commit-messages.mjs --all "$GITHUB_SHA"
+              fi ;;
+            *) echo "Nothing to check for $EVENT" ;;
+          esac
+
   check:
     runs-on: ubuntu-latest
     outputs:

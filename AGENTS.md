@@ -16,6 +16,7 @@ Rules for anyone (human or AI agent) writing code in this repository.
 - `servers/<name>`: one MCP server = one package = one image = one container. Package name = project name on the VPS (`mcp-paie-fr`). A server imports the kit, never another server.
 - A server imports the kit only from `@repo/mcp-kit` (its public API, `src/index.ts`), never from a kit file path.
 - Shared dependency versions live in the `catalog:` of `pnpm-workspace.yaml` (MCP SDK, zod): write `"catalog:"` in `package.json`, never a second version.
+- Adding a server: follow [docs/new-server.md](./docs/new-server.md).
 
 ## Every server
 

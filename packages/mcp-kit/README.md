@@ -37,4 +37,4 @@ export const definition: McpServerDefinition = {
 // src/stdio.ts → runStdio(definition)      src/http.ts → runHttp(definition)
 ```
 
-Design rationale: ARCHITECTURE.md, D23 and D26.
+Full walkthrough: [docs/new-server.md](../../docs/new-server.md). Design rationale: ARCHITECTURE.md, D23 and D26.

@@ -43,7 +43,7 @@ RUN pnpm install --offline --frozen-lockfile --filter "{./servers/${SERVER}}..."
 #    paquet contre ses politiques supply-chain, ce qui lit les métadonnées du
 #    registre. Les paquets eux-mêmes viennent du store rempli par `fetch`.
 #    Le chmod rend l'image indépendante des droits du poste qui construit
-#    (un fichier en 600 sur le disque resterait illisible pour l'utilisateur node).
+#    (un fichier en 600 sur le disque resterait illisible pour l'uid 1001).
 RUN pnpm --filter "{./servers/${SERVER}}..." run build \
  && pnpm --filter "./servers/${SERVER}" deploy --prod /prod \
  && chmod -R a+rX,go-w /prod
@@ -53,13 +53,25 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000
 
+# Aucun gestionnaire de paquets au runtime : le serveur se lance avec `node`,
+# et quelqu'un qui obtiendrait une exécution de code n'a rien pour installer.
+# (Gain de sécurité, pas de taille : les couches Docker sont additives.)
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+           /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+           /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-* \
+ # uid/gid 1001 : ceux qu'impose le compose sur le VPS (convention d'infra).
+ && addgroup -S -g 1001 mcp \
+ && adduser -S -D -H -u 1001 -G mcp mcp
+
 WORKDIR /app
 # Fichiers possédés par root et lancés par un autre utilisateur : le process
 # ne peut pas modifier son propre code (compatible read-only).
 COPY --from=build /prod ./
 COPY --chmod=0644 LICENSE ./
-USER node
+USER 1001:1001
 EXPOSE 3000
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+# --start-interval : sonde toutes les 2 s pendant le démarrage, pour que le
+# déploiement voie « healthy » en quelques secondes et non après 30 s.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --start-interval=2s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:' + (process.env.PORT || 3000) + '/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 CMD ["node", "dist/http.js"]

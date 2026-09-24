@@ -13,7 +13,7 @@ Rules for anyone (human or AI agent) writing code in this repository.
 ## Repository layout
 
 - `packages/mcp-kit` (`@repo/mcp-kit`): the shared runtime. **It knows nothing about any domain**: no domain import, no domain term, not even in tests (they use the `echo` fixture server). What depends on a domain is injected through `McpServerDefinition` (`info`, `createServer`, `health`).
-- `servers/<name>`: one MCP server = one package, built into its own Docker image. Package name = MCP server name (`mcp-paie-fr`). A server imports the kit, never another server.
+- `servers/<name>`: one MCP server = one package = one image = one container. Package name = project name on the VPS (`mcp-paie-fr`). A server imports the kit, never another server.
 - A server imports the kit only from `@repo/mcp-kit` (its public API, `src/index.ts`), never from a kit file path.
 - Shared dependency versions live in the `catalog:` of `pnpm-workspace.yaml` (MCP SDK, zod): write `"catalog:"` in `package.json`, never a second version.
 
@@ -38,6 +38,11 @@ Rules for anyone (human or AI agent) writing code in this repository.
 - stdio: nothing may write to stdout outside the MCP transport (stdout carries JSON-RPC). Log to stderr.
 - Log through the kit's `logger` only. Never log request bodies, tool arguments or client IPs (they can be personal data).
 - HTTP configuration only through environment variables validated in `packages/mcp-kit/src/config.ts`.
+
+## Deployment
+
+- Never build on the VPS: images are built by GitHub Actions and pulled by `~/infra/scripts/deploy.sh` (see [DEPLOY.md](./DEPLOY.md)).
+- A server's compose file (`servers/<name>/deploy/docker-compose.yml`) never publishes a port: only the central Caddy does.
 
 ## Checks before committing
 

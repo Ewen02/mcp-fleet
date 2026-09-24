@@ -1,0 +1,67 @@
+# ---------------------------------------------------------------------------
+# mcp-paie-fr — déploiement sur le VPS (convention ~/infra/CLAUDE.md)
+#
+# Emplacement sur le serveur : ~/apps/mcp-paie-fr/docker-compose.yml
+# À côté : ~/apps/mcp-paie-fr/.env (chmod 600, jamais commité), modèle dans
+# .env.example.
+#
+# L'image est construite par GitHub Actions, jamais sur le serveur ;
+# ~/infra/scripts/deploy.sh exporte IMAGE_TAG=<sha> avant `up -d`, attend
+# l'état healthy et revient au tag précédent sinon.
+# ---------------------------------------------------------------------------
+
+name: mcp-paie-fr
+
+services:
+  app:
+    image: ghcr.io/ewen02/mcp-fleet/mcp-paie-fr:${IMAGE_TAG:-latest}
+    # Nom fixe : c'est par ce nom que Caddy joint le conteneur sur le réseau
+    # du projet (`import mcp mcp-paie-fr` dans le Caddyfile central).
+    container_name: mcp-paie-fr
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Toujours derrière Caddy : l'IP cliente se lit dans X-Forwarded-For.
+      TRUST_PROXY: "true"
+
+    # AUCUNE publication de port : Docker écrit ses règles iptables en amont
+    # de ufw, un port publié serait joignable depuis Internet. Seul Caddy
+    # (~/infra/caddy) publie 80/443 ; il joint ce conteneur par le réseau.
+
+    # Durcissement : le serveur n'écrit rien sur disque et n'a besoin
+    # d'aucun privilège (uid 1001 = utilisateur créé dans le Dockerfile).
+    user: "1001:1001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    init: true
+    pids_limit: 100
+
+    # Profil PERSONNEL (convention § 3.3). memswap_limit toujours égal à
+    # mem_limit, sinon la limite effective double avec le swap de la machine.
+    # Mesuré : ~55 Mo au repos.
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1.0
+
+    # Le serveur s'arrête en moins de 8 s (plafond interne) : les 10 s par
+    # défaut de Docker suffisent. Explicite pour ne pas le découvrir.
+    stop_grace_period: 10s
+
+    # Healthcheck : défini dans l'image (GET /health), hérité ici.
+    # Rotation des logs : globale à la machine (/etc/docker/daemon.json).
+
+    networks:
+      - web-mcp-paie-fr
+
+# Réseau propre au projet, créé une fois à la main :
+#   docker network create web-mcp-paie-fr
+# Caddy y est rattaché (~/infra/caddy/docker-compose.yml, deux endroits).
+networks:
+  web-mcp-paie-fr:
+    external: true

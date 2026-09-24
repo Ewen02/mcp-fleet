@@ -1,6 +1,6 @@
 # mcp-fleet
 
-All my MCP servers in one place, built in public on a shared kit that gives them the same transports, safeguards, logs and deployment. No domain rule is hand-coded: each server relies on an authoritative source (an official engine, an open dataset) and says where every answer comes from.
+All my MCP servers in one place, built in public on a shared kit. Each server is one container and one subdomain; the kit gives them the same transports, safeguards, logs and deployment. No domain rule is hand-coded: each server relies on an authoritative source (an official engine, an open dataset) and says where every answer comes from.
 
 > Independent projects. Results are estimates; each server states its sources and known limitations, and its own disclaimer (e.g. paie-fr is not affiliated with URSSAF).
 
@@ -19,8 +19,9 @@ packages/
   mcp-kit/            @repo/mcp-kit: stdio and HTTP transports, config, logs, rate limit,
                       telemetry, common schemas. Knows nothing about any domain.
 servers/
-  paie-fr/            mcp-paie-fr: URSSAF engine, domain, tools, tests
-deploy/Caddyfile      Caddy configuration for the VPS (reverse proxy on the host)
+  paie-fr/            mcp-paie-fr: URSSAF engine, domain, tools, tests, deploy files
+deploy/Caddyfile      Caddy fragment for the VPS (one block per server)
+scripts/              smoke test of a running server
 github-setup/         GitHub Actions and Dependabot files, to copy into .github/
 ```
 
@@ -43,7 +44,7 @@ Work on one package (Turborepo still builds what it depends on first): `pnpm tur
 
 Per-server instructions (tools, local setup in Claude Desktop or Cursor, debugging): see each server's README, e.g. [servers/paie-fr](./servers/paie-fr/README.md).
 
-Remote setup: Docker image + Compose + Caddy on a VPS, deployed by GitHub Actions: [DEPLOY.md](./DEPLOY.md).
+Remote servers run on a VPS behind Caddy, one container and one subdomain per server, deployed by GitHub Actions: [DEPLOY.md](./DEPLOY.md).
 
 ## Privacy
 

@@ -1,99 +1,150 @@
-# Deploying on a VPS
+# Deploying on the VPS
 
-Target: a Linux VPS with Docker + Compose, Caddy on the host for HTTPS, GitHub Actions for CI/CD.
+Target: the self-hosting VPS and its convention (`~/infra/CLAUDE.md`, the single reference for infrastructure rules). Docker + Compose, one central Caddy container for HTTPS, images built by GitHub Actions and pulled by `~/infra/scripts/deploy.sh`.
 
 ```
-Claude / ChatGPT / Cursor ──HTTPS──▶ Caddy (host, :443) ──HTTP──▶ 127.0.0.1:3000 ──▶ container mcp-paie-fr
+Claude / ChatGPT / Cursor
+        │ HTTPS
+        ▼
+Caddy container (~/infra/caddy, the only one publishing 80/443)
+        ├── network web-mcp-paie-fr ──▶ container mcp-paie-fr :3000
+        └── network web-mcp-<next>  ──▶ container mcp-<next>  :3000
 ```
 
-## 1. One-time setup
+**One server of this repository = one project on the VPS.** Everything is named after the server's package name (`servers/paie-fr/package.json` → `mcp-paie-fr`):
 
-### DNS
-Create an `A` record (and `AAAA` if IPv6) for your MCP domain, e.g. `mcp-paie.example.com`, pointing to the VPS.
+| Object | Value for paie-fr |
+|---|---|
+| Folder on the VPS | `~/apps/mcp-paie-fr/` (compose + `.env`, no source code) |
+| Docker network | `web-mcp-paie-fr` |
+| Container | `mcp-paie-fr` |
+| Image | `ghcr.io/ewen02/mcp-fleet/mcp-paie-fr:<sha>` and `:latest` |
+| Public URL | `https://mcp-paie-fr.137-74-175-232.sslip.io/mcp` |
 
-### Caddy (host)
+The `/vps-deploy` and `/vps-domaine` Claude skills automate the VPS side of the steps below.
+
+## 1. Once per repository
+
+### GitHub
+1. Create the repository and copy `github-setup/` into `.github/` (`dependabot.yml`, `workflows/ci.yml`, `workflows/rules-watch.yml`).
+2. **Deploy key**: one per repository (the CI secrets are shared by all its servers anyway), restricted to this repository's projects:
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/deploy-mcp-fleet -C "deploy-mcp-fleet" -N ""
+   KEY=$(cat ~/.ssh/deploy-mcp-fleet.pub)
+   ssh vps "echo 'command=\"/home/ubuntu/infra/scripts/deploy.sh mcp-paie-fr\",no-agent-forwarding,no-port-forwarding,no-pty,no-X11-forwarding $KEY' >> ~/.ssh/authorized_keys"
+   ```
+   Adding a server later = adding its name after `deploy.sh` on that line.
+3. **Settings › Secrets and variables › Actions**:
+
+   | Kind | Name | Value |
+   |---|---|---|
+   | Secret | `SSH_HOST` | `137.74.175.232` |
+   | Secret | `SSH_USER` | `ubuntu` |
+   | Secret | `SSH_KEY` | `pbcopy < ~/.ssh/deploy-mcp-fleet` |
+   | Secret | `SSH_KNOWN_HOSTS` | `ssh-keyscan -t ed25519 137.74.175.232` |
+   | Variable | `DEPLOY_ENABLED` | `true` (deployment is opt-in) |
+   | Variable | `MCP_BASE_DOMAIN` | optional, default `137-74-175-232.sslip.io` (HTTPS smoke test: `https://<name>.<base>/health`) |
+
+4. **Registry**: the VPS already pulls from GHCR (`docker login ghcr.io` done once for the machine). Nothing to do, whether the package is private or public.
+
+### Caddy (central Caddyfile)
+Merge the first two parts of [deploy/Caddyfile](./deploy/Caddyfile) into `~/infra/caddy/Caddyfile`, once:
+- the `log default` filter, **inside** the existing global `{ … }` block: it removes client IPs and headers from Caddy's error logs, as promised in [PRIVACY.md](./PRIVACY.md);
+- the `(mcp)` snippet, next to `(app)`. Why it differs from `(app)`: no access log, no compression, upstream keep-alive shorter than Node's (ARCHITECTURE.md, D24).
+
+## 2. Once per server
+
+Example for paie-fr. Order matters: network before Caddy, Caddy before the first deployment.
+
 ```bash
-sudo apt install -y caddy
-# From deploy/Caddyfile: put the global options block at the very top of
-# /etc/caddy/Caddyfile (once for all sites), then add the site block with your domain.
-sudo caddy validate --config /etc/caddy/Caddyfile
-sudo systemctl reload caddy
-```
-Caddy obtains and renews the TLS certificate automatically.
-- `flush_interval -1`: MCP responses may be streamed (SSE).
-- `keepalive 30s`: shorter than Node's 65 s keep-alive, so Caddy never reuses a connection Node is closing.
-- The global `log` filter removes client IPs and headers from Caddy's error logs (it has no access log), as promised in [PRIVACY.md](./PRIVACY.md).
+# 1. Network and folder
+ssh vps 'docker network create web-mcp-paie-fr && mkdir -p ~/apps/mcp-paie-fr'
 
-### Application directory
+# 2. Compose and configuration
+scp servers/paie-fr/deploy/docker-compose.yml vps:~/apps/mcp-paie-fr/
+scp servers/paie-fr/deploy/.env.example vps:~/apps/mcp-paie-fr/.env
+ssh vps 'chmod 600 ~/apps/mcp-paie-fr/.env && nano ~/apps/mcp-paie-fr/.env'   # ALLOWED_HOSTS = public domain
+
+# 3. Caddy: attach it to the new network (two places in ~/infra/caddy/docker-compose.yml:
+#    the service's `networks:` and the bottom `networks:` section), then recreate it
+#    (~2 s interruption of every site, certificates are kept in named volumes)
+ssh vps 'cd ~/infra/caddy && docker compose up -d'
+
+# 4. Caddy: add the server's block from deploy/Caddyfile, validate BEFORE reloading
+#    (an invalid file makes the reload fail while Caddy keeps serving the old config)
+scp caddy/Caddyfile vps:~/infra/caddy/   # from your ~/infra checkout
+ssh vps 'cd ~/infra/caddy && docker compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile </dev/null \
+  && docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile </dev/null'
+
+# 5. Whitelist the project on the repository's deploy key (see §1)
+```
+
+Then push to `main`. Check from the Internet, not from the server:
+
 ```bash
-sudo mkdir -p /opt/mcp-paie-fr && sudo chown "$USER" /opt/mcp-paie-fr
-cd /opt/mcp-paie-fr
-# copy compose.yaml and .env.example from the repository, then:
-cp .env.example .env && nano .env      # IMAGE, MCP_DOMAIN
+scripts/smoke-test.sh https://mcp-paie-fr.137-74-175-232.sslip.io
 ```
 
-### Registry access
-The CI publishes the image to `ghcr.io/<github-user>/<repository>/mcp-paie-fr`.
-- Public repository: make the package public once (GitHub → Packages → mcp-paie-fr → Package settings → Change visibility).
-- Private repository: `docker login ghcr.io` on the VPS with a token that has `read:packages`.
+Finally, back up the new `.env` right away: `~/infra/scripts/backup-env.sh`.
 
-### First start
-```bash
-docker compose pull && docker compose up -d --wait
-curl -s https://mcp-paie.example.com/health
-```
+## 3. What happens on each push
 
-## 2. Continuous deployment (GitHub Actions)
+| Event | check | image | deploy |
+|---|---|---|---|
+| Pull request | lint, typecheck, tests, build, `pnpm audit` | build + hardened smoke test, not pushed | — |
+| Push to `main` | same | build, smoke test, push `:<sha>` + `:latest` | `deploy mcp-paie-fr <sha>` over SSH, then HTTPS `/health` |
 
-Every push to `main`: lint, typecheck, tests, build, `pnpm audit` → image pushed to GHCR (`latest` and `sha-<commit>`) → deployment over SSH → HTTPS smoke test.
+On the VPS, `deploy.sh` pulls the image of the commit, waits for `healthy` (the image probes every 2 s while starting: ~3 s), records the tag in `.deployed-tag`, and **rolls back to the previous tag** if the container does not become healthy. Its exit code fails the job: a broken deployment never shows a green check.
 
-Deployment runs only when you opt in. In the repository settings:
+## 4. Operations
 
-| Kind | Name | Value |
-|---|---|---|
-| Variable | `DEPLOY_ENABLED` | `true` |
-| Variable | `MCP_DOMAIN` | `mcp-paie.example.com` |
-| Variable | `VPS_APP_DIR` | `/opt/mcp-paie-fr` (optional, default) |
-| Secret | `VPS_HOST` | VPS hostname or IP |
-| Secret | `VPS_USER` | deploy user (member of the `docker` group) |
-| Secret | `VPS_SSH_KEY` | private key of a key pair **dedicated to deployment** |
-| Secret | `VPS_KNOWN_HOSTS` | output of `ssh-keyscan -t ed25519 <vps-host>` |
+In `~/apps/mcp-paie-fr` on the VPS (`ssh vps`):
 
-Tip: restrict the deploy key in `~/.ssh/authorized_keys` on the VPS (`from="<github-ip-ranges>"` or a forced command) if you want to go further.
-
-The deployed tag is written into `.env` (`IMAGE_TAG=sha-…`), so a manual `docker compose up -d` keeps the same version.
-
-## 3. Operations
-
-| Task | Command (in `/opt/mcp-paie-fr`) |
+| Task | Command |
 |---|---|
 | Status | `docker compose ps` (should say `healthy`) |
 | Logs | `docker compose logs -f --since 1h` |
 | Tool usage today | `docker compose logs --since 24h \| grep '"event":"tool_call"'` |
-| Rollback | set `IMAGE_TAG=sha-<previous>` in `.env`, then `docker compose up -d --wait` |
+| Version in service | `cat .deployed-tag` |
+| Rollback | `IMAGE_TAG=<sha> docker compose up -d` (SHAs: GitHub › Packages, or `.deployed-tag` history in the CI runs) |
 | Restart | `docker compose restart` |
 
-Logs are JSON lines on stderr: `server_started`, `http_request` (method, path, status, duration, request id), `tool_call` (tool, outcome, duration). They never contain request bodies or tool arguments.
+Logs are JSON lines on stderr: `server_started`, `http_request` (method, path, status, duration, request id), `tool_call` (tool, outcome, duration). They never contain request bodies, tool arguments or IPs. Rotation is global to the machine (`/etc/docker/daemon.json`, 3 × 10 MB).
 
-Monitoring: point an uptime checker (Uptime Kuma, UptimeRobot…) at `https://<domain>/health`.
+Monitoring: point an uptime checker at `https://<domain>/health`. Resource usage and limits: `/vps-ressources` (paie-fr: ~52 MB of the 512 MB personal profile).
 
-## 4. Configuration reference
+## 5. Configuration reference
+
+Environment variables of every server (validated at start-up by the kit; an invalid value stops the server with an `invalid_config` log line):
 
 | Variable | Default | Notes |
 |---|---|---|
-| `PORT` | `3000` | Port inside the container |
+| `PORT` | `3000` | Port inside the container (always 3000 on the VPS) |
 | `HOST` | `127.0.0.1` (`0.0.0.0` in the image) | Listening interface |
-| `ALLOWED_HOSTS` | localhost only | Public domain(s), comma-separated. Set by compose from `MCP_DOMAIN` |
+| `ALLOWED_HOSTS` | localhost only | Public domain(s), comma-separated. **Required** in `.env`: any other `Host` is refused (DNS rebinding) |
 | `ALLOWED_ORIGINS` | none | Only for browser-based clients |
-| `TRUST_PROXY` | `false` (`true` in compose) | Read the client IP from `X-Forwarded-For`. Only behind a trusted proxy |
+| `TRUST_PROXY` | `false` (`true` in the compose) | Read the client IP from `X-Forwarded-For` (last entry, added by Caddy) |
 | `RATE_LIMIT_PER_MINUTE` | `600` | Per client IP, `0` disables. Claude/ChatGPT connectors share a few IPs across all their users: keep it generous |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error`, `silent` |
 
-An invalid value stops the server at startup with an `invalid_config` log line.
+## 6. Rehearsing locally
 
-## 5. Adding the server to AI clients
+The exact production chain can run on a Mac before a first deployment (this is how v0.5.0 was verified):
 
-Remote MCP URL: `https://<domain>/mcp` (no authentication).
+```bash
+docker build --build-arg SERVER=paie-fr -t ghcr.io/ewen02/mcp-fleet/mcp-paie-fr:local .
+docker network create web-mcp-paie-fr
+# A folder shaped like ~/apps/mcp-paie-fr: the repo's compose + a .env with
+# ALLOWED_HOSTS=mcp-paie-fr.127-0-0-1.sslip.io (sslip.io resolves it to 127.0.0.1)
+IMAGE_TAG=local docker compose up -d --wait
+# Caddy 2.11.4 on the same network, with deploy/Caddyfile + `local_certs` in the
+# global block and the local domain, published on 127.0.0.1:8443
+scripts/smoke-test.sh https://mcp-paie-fr.127-0-0-1.sslip.io:8443 --cacert caddy-root.crt
+```
+
+## 7. Adding a server to AI clients
+
+Remote MCP URL: `https://<name>.137-74-175-232.sslip.io/mcp` (no authentication).
 
 - **Claude** (web/desktop): Settings → Connectors → Add custom connector → paste the URL.
 - **ChatGPT**: Settings → Connectors (developer mode) → Create → paste the URL.

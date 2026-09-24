@@ -1,11 +1,23 @@
-# Configuration Caddy (hôte) pour mcp-paie-fr. Puis :
-#   sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
-# Caddy obtient et renouvelle le certificat HTTPS automatiquement.
+# ---------------------------------------------------------------------------
+# Fragment à fusionner dans le Caddyfile CENTRAL du VPS (~/infra/caddy/Caddyfile).
+# Ce dépôt ne publie aucun port : Caddy est le seul point d'entrée.
+#
+# Trois morceaux :
+#   1. le filtre global des logs d'erreur (une fois, dans le bloc global) ;
+#   2. le snippet (mcp), une fois, à côté de (app) ;
+#   3. un bloc par serveur MCP du dépôt.
+#
+# Puis, sans interruption de service :
+#   docker compose exec -T caddy caddy validate --config /etc/caddy/Caddyfile
+#   docker compose exec -T caddy caddy reload   --config /etc/caddy/Caddyfile
+# ---------------------------------------------------------------------------
 
-# ─── Options globales : à placer UNE fois, tout en haut de /etc/caddy/Caddyfile ───
+# ─── 1. Bloc global : AJOUTER ce `log default` au bloc { … } existant ─────────
 # Caddy journalise les erreurs d'upstream (502 pendant un redémarrage…) avec
-# l'IP cliente et tous les headers. On retire ces champs : l'IP est une
+# l'IP cliente et tous les en-têtes. On retire ces champs : l'IP est une
 # donnée personnelle et PRIVACY.md promet qu'elle n'est jamais écrite.
+# S'applique aux logs d'erreur de tous les sites ; les access logs des autres
+# projets (snippet `defaults`) ne sont pas concernés.
 {
 	log default {
 		format filter {
@@ -16,20 +28,39 @@
 	}
 }
 
-# ─── Site ───
-# Pas de bloc `log` (access log) : l'application journalise déjà chaque
-# requête, sans IP ni body.
-mcp-paie.example.com {
-	reverse_proxy 127.0.0.1:3000 {
+# ─── 2. Snippet commun aux serveurs MCP ──────────────────────────────────────
+# Argument : le nom du conteneur (= nom du projet). Port toujours 3000.
+#
+# Diffère de (app) sur trois points, chacun voulu :
+# - pas d'`import defaults`, donc PAS d'access log : l'application journalise
+#   déjà chaque requête, sans IP ni body (PRIVACY.md) ;
+# - pas de compression : les réponses font quelques Ko, et `encode` peut
+#   retenir un flux SSE au lieu de le transmettre au fil de l'eau ;
+# - keep-alive upstream de 30 s, plus court que celui de Node (65 s) : c'est
+#   toujours Caddy qui ferme une connexion inactive, jamais Node pendant que
+#   Caddy la réutilise. Un POST (tout appel MCP) n'est pas rejoué par Caddy :
+#   cette course donnerait des 502 aléatoires (défaut de Caddy : 2 min).
+(mcp) {
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+	reverse_proxy {args[0]}:3000 {
 		# Réponses MCP en SSE : transmettre chaque événement sans bufferiser.
 		flush_interval -1
 		transport http {
-			# Plus court que le keep-alive de Node (65 s) : c'est toujours
-			# Caddy qui ferme une connexion inactive, jamais Node pendant
-			# que Caddy la réutilise (sinon 502 aléatoires).
+			dial_timeout 5s
+			response_header_timeout 30s
 			keepalive 30s
 		}
 	}
-	# Ne pas annoncer la techno du serveur.
-	header -Server
+}
+
+# ─── 3. Un bloc par serveur MCP ──────────────────────────────────────────────
+# sslip.io résout sans configuration DNS (certificat en quelques secondes).
+# Pour un vrai domaine : enregistrement A AVANT de recharger Caddy (/vps-domaine).
+
+# mcp-paie-fr — paie et impôt sur le revenu (servers/paie-fr)
+mcp-paie-fr.137-74-175-232.sslip.io {
+	import mcp mcp-paie-fr
 }

@@ -48,7 +48,7 @@ Use the absolute path of `node` (`which node`): desktop clients don't inherit yo
 
 ## Remote setup (HTTP)
 
-Production: Docker image + Compose + Caddy on a VPS, deployed by GitHub Actions. Full runbook in [DEPLOY.md](../../DEPLOY.md).
+Production: `https://mcp-paie-fr.137-74-175-232.sslip.io/mcp` once deployed (Docker image + central Caddy on the VPS, see [DEPLOY.md](../../DEPLOY.md)).
 
 Locally:
 

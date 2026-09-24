@@ -18,6 +18,9 @@
 # donnée personnelle et PRIVACY.md promet qu'elle n'est jamais écrite.
 # S'applique aux logs d'erreur de tous les sites ; les access logs des autres
 # projets (snippet `defaults`) ne sont pas concernés.
+# Sur le VPS, c'est une ceinture : dès qu'un autre site a un `log`, Caddy met
+# les hôtes sans logger (les serveurs MCP) dans `skip_hosts` et n'écrit AUCUNE
+# ligne pour eux, même en erreur (vérifié en production avec une 502 provoquée).
 {
 	log default {
 		format filter {

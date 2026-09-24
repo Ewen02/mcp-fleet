@@ -49,7 +49,7 @@ The `/vps-deploy` and `/vps-domaine` Claude skills automate the VPS side of the 
 
 ### Caddy (central Caddyfile)
 Merge the first two parts of [deploy/Caddyfile](./deploy/Caddyfile) into `~/infra/caddy/Caddyfile`, once:
-- the `log default` filter, **inside** the existing global `{ … }` block: it removes client IPs and headers from Caddy's error logs, as promised in [PRIVACY.md](./PRIVACY.md);
+- the `log default` filter, **inside** the existing global `{ … }` block: it removes client IPs and headers from Caddy's error logs, as promised in [PRIVACY.md](./PRIVACY.md). It is a second line of defense: Caddy already writes no line at all for the MCP hosts, which have no `log` directive while other sites do (`skip_hosts`);
 - the `(mcp)` snippet, next to `(app)`. Why it differs from `(app)`: no access log, no compression, upstream keep-alive shorter than Node's (ARCHITECTURE.md, D24).
 
 ## 2. Once per server

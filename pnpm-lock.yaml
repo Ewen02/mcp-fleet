@@ -13,8 +13,8 @@ catalogs:
       specifier: ^2.1.0
       version: 2.1.0
     '@modelcontextprotocol/server':
-      specifier: ^2.1.0
-      version: 2.1.0
+      specifier: ^2.3.1
+      version: 2.3.1
     zod:
       specifier: ^4.0.0
       version: 4.6.5
@@ -43,10 +43,10 @@ importers:
     dependencies:
       '@modelcontextprotocol/node':
         specifier: 'catalog:'
-        version: 2.1.0(@modelcontextprotocol/server@2.1.0)(hono@4.13.8)
+        version: 2.1.0(@modelcontextprotocol/server@2.3.1)(hono@4.13.8)
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
-        version: 2.1.0
+        version: 2.3.1
       zod:
         specifier: 'catalog:'
         version: 4.6.5
@@ -59,7 +59,7 @@ importers:
     dependencies:
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
-        version: 2.1.0
+        version: 2.3.1
       '@repo/mcp-kit':
         specifier: workspace:*
         version: link:../../packages/mcp-kit
@@ -306,6 +306,10 @@ packages:
     resolution: {integrity: sha512-YdFj5gMRHr0gYNAhTbQDgjLHiEJdIAUYxomhKseUNye7ZGlISQmUoLh2sveFFCiQ7j2YMffT1kgSND0FSfIFjQ==}
     engines: {node: '>=20'}
 
+  '@modelcontextprotocol/core@2.3.1':
+    resolution: {integrity: sha512-laVmIhPGpWi7rG9q+0UigblRN0Hws/Yjlb6qLFtVqryXVLkc4h+yN8z731POD2LnAGQlFe7/tXhUm7Bi0YB91g==}
+    engines: {node: '>=20'}
+
   '@modelcontextprotocol/node@2.1.0':
     resolution: {integrity: sha512-6xg3iWVcOfiL8Y7rI6xUqXD0lI2AY5q3djsa/cOi1IJUSwx06t0gvhSwU/6mIIohrFlt40/ANUG56DQ0HLhILQ==}
     engines: {node: '>=20'}
@@ -316,8 +320,8 @@ packages:
       hono:
         optional: true
 
-  '@modelcontextprotocol/server@2.1.0':
-    resolution: {integrity: sha512-FdvwZU5N03O77Suh35JqjAqq5R1ZTEPFtwu6N4BgBq28qrQtrCnpbLL5U2pwYCuE194jAw0xnlOVmIqhfoYuUQ==}
+  '@modelcontextprotocol/server@2.3.1':
+    resolution: {integrity: sha512-e59MfWuSssj6DoQ96JCTqdW1AXT5/XtnTl0WWd6MU1Ka434fFUGGosCLJbGNySDhHGvxQWoRWK137FXYFkYNWw==}
     engines: {node: '>=20'}
 
   '@turbo/darwin-64@2.11.3':
@@ -687,16 +691,20 @@ snapshots:
     dependencies:
       zod: 4.6.5
 
-  '@modelcontextprotocol/node@2.1.0(@modelcontextprotocol/server@2.1.0)(hono@4.13.8)':
+  '@modelcontextprotocol/core@2.3.1':
+    dependencies:
+      zod: 4.6.5
+
+  '@modelcontextprotocol/node@2.1.0(@modelcontextprotocol/server@2.3.1)(hono@4.13.8)':
     dependencies:
       '@hono/node-server': 1.19.17(hono@4.13.8)
-      '@modelcontextprotocol/server': 2.1.0
+      '@modelcontextprotocol/server': 2.3.1
     optionalDependencies:
       hono: 4.13.8
 
-  '@modelcontextprotocol/server@2.1.0':
+  '@modelcontextprotocol/server@2.3.1':
     dependencies:
-      '@modelcontextprotocol/core': 2.1.0
+      '@modelcontextprotocol/core': 2.3.1
       zod: 4.6.5
 
   '@turbo/darwin-64@2.11.3':

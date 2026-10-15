@@ -32,7 +32,7 @@
     "@modelcontextprotocol/server": "catalog:",
     "@repo/mcp-kit": "workspace:*",
     "modele-social": "11.1.0",
-    "publicodes": "^1.10.3",
+    "publicodes": "^1.10.4",
     "zod": "catalog:"
   },
   "devDependencies": {

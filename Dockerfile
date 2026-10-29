@@ -13,7 +13,7 @@
 
 # Image de base écrite en entier et épinglée par digest : build reproductible,
 # et Dependabot peut proposer les mises à jour (il ne résout pas les ARG).
-FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS build
+FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS build
 # pnpm vient de corepack, à la version de "packageManager" (package.json
 # racine) : une seule source de vérité, en local, en CI et ici.
 RUN corepack enable
@@ -48,7 +48,7 @@ RUN pnpm --filter "{./servers/${SERVER}}..." run build \
  && pnpm --filter "./servers/${SERVER}" deploy --prod /prod \
  && chmod -R a+rX,go-w /prod
 
-FROM node:22-alpine@sha256:0a7108bf6c7bf5de370ffb1a3ed6be93d405b43ff159f681a8d18c0e2bc2e402 AS runtime
+FROM node:22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914 AS runtime
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000
